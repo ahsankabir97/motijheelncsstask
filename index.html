@@ -347,6 +347,12 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzLrnx5cLKn1jP1W4sEK
       const ticketObj = tickets.find(t => t.firebaseKey === firebaseKey);
       const ticketID  = ticketObj ? ticketObj.ticket : null;
 
+      // Permission guard: admin/ahsan can delete anything, everyone else only their own ticket
+      if (!ticketObj || !canDeleteTicket(ticketObj)) {
+        console.warn('Delete blocked: not your ticket');
+        return false;
+      }
+
       await remove(ref(db, 'tickets/' + firebaseKey));
 
       if (ticketID) {
@@ -514,9 +520,9 @@ html.l3-restoring #login-screen{display:none !important;}
 .nav-icon-wrap{width:var(--nav-ic,22px);height:var(--nav-ic,22px);border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;border:1px solid rgba(255,255,255,.4);z-index:1;transition:transform .44s cubic-bezier(.22,1,.36,1),box-shadow .44s ease,filter .44s ease,background .5s ease;}
 .nav-icon-wrap::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.32) 0%,rgba(255,255,255,0) 55%);border-radius:inherit;pointer-events:none;z-index:1;}
 .nav-icon-wrap i{font-size:.68rem;color:#fff;position:relative;z-index:2;filter:drop-shadow(0 1px 2px rgba(0,0,0,.3));transition:transform .4s ease;}
-.nav-item:hover .nav-icon-wrap{transform:scale(1.15) rotate(-4deg);filter:brightness(1.12);box-shadow:0 4px 12px rgba(0,0,0,.35);background:rgba(255,255,255,.26);}
+.nav-item:hover .nav-icon-wrap{transform:scale(1.15) rotate(-4deg);box-shadow:0 4px 12px rgba(0,0,0,.35);}
 .nav-item:hover .nav-icon-wrap i{transform:scale(1.08);}
-.nav-item.active .nav-icon-wrap{transform:scale(1.1);filter:brightness(1.08);box-shadow:0 0 0 2.5px rgba(255,255,255,.22),0 4px 12px rgba(0,0,0,.35);}
+.nav-item.active .nav-icon-wrap{transform:scale(1.1);box-shadow:0 0 0 2.5px rgba(255,255,255,.22),0 4px 12px rgba(0,0,0,.35);}
 
 /* Per-page accent colors — always visible, not just on hover, for quick visual scanning */
 .ic-dash{background:linear-gradient(145deg,#38bdf8,#0284c7);box-shadow:0 3px 10px rgba(56,189,248,.55);}
@@ -1005,10 +1011,15 @@ tbody tr:hover td{background:#f0f8ff}
   border: 1.5px solid #bfdbfe !important;
 }
 #page-alltask .form-card{padding:8px 18px !important;margin-top:4px !important;}
+#at-stats{margin-top:-6px;margin-bottom:6px;}
+#at-stats .stat-card{height:30px;padding:2px 8px;border-radius:8px;gap:6px;}
+#at-stats .stat-num{font-size:.9rem;}
+#at-stats .stat-lbl{font-size:.58rem;}
+#at-stats .stat-icon{font-size:.75rem;}
 #page-wifi .tbl-top{display:none;}
 #page-devices .tbl-top{display:none;}
 #page-mytask .tbl-top{display:none;}
-#tr-summary-tbody td{padding:0px 2px !important;line-height:1.2;}
+#tr-summary-tbody td{padding:3px 2px !important;line-height:1.2;}
 #tr-summary-tbody tr td span{width:14px;height:14px;font-size:.58rem;}
 #tr-tech-tbody td{padding:0px 2px !important;line-height:1.2;}
 #tr-tech-tbody tr td span{width:14px;height:14px;font-size:.58rem;}
@@ -1594,6 +1605,69 @@ button:focus,a:focus,[tabindex]:focus,.tr-click:focus{outline:none !important}
   .sb-zone{font-size:.8rem !important;padding:5px 14px 5px 11px !important;margin-top:6px}
   .sidebar.collapsed .sb-zone{display:none}
 }
+
+/* ===== Running Task badge: red bg with light-blue outline, heartbeat up/down ===== */
+.nav-count-badge{position:relative !important;isolation:isolate;box-sizing:border-box !important;width:auto !important;min-width:17px !important;height:17px !important;padding:0 4px !important;line-height:1 !important;font-size:.6rem !important;font-weight:800 !important;border:none !important;border-radius:999px !important;background:transparent !important;box-shadow:none !important;animation:none !important;transform:none !important;align-items:center !important;justify-content:center !important;text-align:center}
+/* red circle is a layer behind the number: only the circle beats, the number never moves */
+.nav-count-badge::before{content:"";position:absolute;inset:0;z-index:-1;border-radius:999px;background:#ef4444;box-shadow:0 0 0 2px rgba(96,165,250,.5),0 0 6px 2px rgba(96,165,250,.4);transform-origin:center;animation:navBadgeBeat 2.4s ease-in-out infinite}
+@keyframes navBadgeBeat{
+  0%,100%{transform:scale(1)}
+  14%{transform:scale(1.07)}
+  28%{transform:scale(1)}
+  42%{transform:scale(1.04)}
+  70%{transform:scale(1)}
+}
+/* ===== Engineer Task Summary header: compact (about 2/3 of previous height) ===== */
+#tr-view-eng thead th{padding:4px 6px !important;line-height:1.1 !important}
+#tr-view-eng .tr-subhead th,#tr-view-eng .tr-subhead th:first-child{font-size:.66rem !important;width:1% !important;white-space:nowrap !important;padding:3px 5px !important;font-size:.66rem !important;letter-spacing:.2px !important}
+/* ===== Engineer Task Summary: fit without horizontal scroll + colour per group ===== */
+#tr-view-eng .tbl-wrap{overflow-x:visible}
+#tr-view-eng thead th{padding:4px 4px !important}
+#tr-view-eng .tr-subhead th,#tr-view-eng .tr-subhead th:first-child{font-size:.68rem !important;letter-spacing:.2px !important;padding:3px 9px !important;text-transform:none !important;border:1px solid rgba(255,255,255,.6) !important}
+#tr-view-eng thead tr:first-child th:first-child{min-width:0 !important;width:1% !important;white-space:nowrap !important;padding-left:8px !important;padding-right:8px !important}
+#tr-summary-tbody td{padding-left:1px !important;padding-right:1px !important}
+#tr-summary-tbody td:first-child{padding-left:8px !important;padding-right:4px !important;font-size:.9rem !important;width:1% !important;white-space:nowrap !important}
+#tr-summary-tbody span.tr-click:not(.tr-tot){width:28px !important;min-width:28px !important;height:21px !important}
+#tr-summary-tbody span.tr-click[onclick*="'tw'"]:not(.tr-tot){width:32px !important;min-width:32px !important;height:25px !important}
+#tr-view-eng thead th.h-start{border-left:2px solid #fff !important}
+#tr-view-eng thead tr:first-child th:nth-child(n+5){border-left:2px solid #fff !important}
+#tr-view-eng thead th.h-grp{border:1px solid #fff !important;border-left:2px solid #fff !important}
+#tr-summary-tbody td.g-start{border-left:2px solid #c7d2e5 !important}
+/* header colours */
+#tr-view-eng thead th.h-ts.h-grp{background:#3d68bd !important}  #tr-view-eng thead th.h-ts.h-sub{background:#5a86d8 !important}
+#tr-view-eng thead th.h-ins.h-grp{background:#0f8a74 !important} #tr-view-eng thead th.h-ins.h-sub{background:#27a78f !important}
+#tr-view-eng thead th.h-cr.h-grp{background:#7e4fc4 !important}  #tr-view-eng thead th.h-cr.h-sub{background:#9b72d9 !important}
+#tr-view-eng thead th.h-sv.h-grp{background:#d6336c !important}  #tr-view-eng thead th.h-sv.h-sub{background:#e85c8e !important}
+/* column tints */
+#tr-summary-tbody td.g-ts{background-image:linear-gradient(rgba(59,130,246,.07),rgba(59,130,246,.07))}
+#tr-summary-tbody td.g-ins{background-image:linear-gradient(rgba(16,185,129,.09),rgba(16,185,129,.09))}
+#tr-summary-tbody td.g-cr{background-image:linear-gradient(rgba(139,92,246,.09),rgba(139,92,246,.09))}
+#tr-summary-tbody td.g-sv{background-image:linear-gradient(rgba(236,72,153,.08),rgba(236,72,153,.08))}
+/* non-zero chips */
+#tr-summary-tbody span.tr-nz[data-g="ts"]{background:#dbeafe !important;color:#1d4ed8 !important;border-color:#93c5fd !important}
+#tr-summary-tbody span.tr-nz[data-g="ins"]{background:#d1fae5 !important;color:#047857 !important;border-color:#6ee7b7 !important}
+#tr-summary-tbody span.tr-nz[data-g="cr"]{background:#ede9fe !important;color:#6d28d9 !important;border-color:#c4b5fd !important}
+#tr-summary-tbody span.tr-nz[data-g="sv"]{background:#fce7f3 !important;color:#be185d !important;border-color:#f9a8d4 !important}
+/* total row numbers in group colours */
+#tr-summary-tbody tr:last-child td.g-ts{color:#1d4ed8 !important}
+#tr-summary-tbody tr:last-child td.g-ins{color:#047857 !important}
+#tr-summary-tbody tr:last-child td.g-cr{color:#6d28d9 !important}
+#tr-summary-tbody tr:last-child td.g-sv{color:#be185d !important}
+/* ===== Engineer Task Summary: easier-to-read layout ===== */
+#tr-summary-tbody td{padding-top:5px !important;padding-bottom:5px !important;border-bottom:1px solid #e3ebf7 !important;border-left:1px solid #edf2fa}
+/* stronger vertical dividers where a new group starts */
+#tr-summary-tbody td:nth-child(2),#tr-summary-tbody td:nth-child(5),#tr-summary-tbody td:nth-child(8),#tr-summary-tbody td:nth-child(11),#tr-summary-tbody td:nth-child(12),#tr-summary-tbody td:nth-child(13),#tr-summary-tbody td:nth-child(14){border-left:2px solid #b9c8e3 !important}
+#tr-summary-tbody td.g-start{border-left:2px solid #b9c8e3 !important}
+/* zero values fade back so real numbers stand out */
+#tr-summary-tbody span.tr-click:not(.tr-nz):not(.tr-tot){opacity:.5}
+/* TOTAL row: smaller numbers, clear separation */
+#tr-summary-tbody tr:last-child td{border-bottom:none !important;padding-top:3px !important;padding-bottom:3px !important;background-color:#f1faf4}
+#tr-summary-tbody tr:last-child td:not(:first-child){font-size:1.05rem !important;font-weight:800 !important}
+#tr-summary-tbody tr:last-child td:last-child{background-color:rgba(22,163,74,.18)}
+/* ===== Running Task + Completed Today: ALL headers centered (incl. Client Info) ===== */
+#rt-table thead th,#rt-done-table thead th,
+#rt-table th:nth-child(3),#rt-done-table th:nth-child(3),
+#rt-table thead th:nth-child(3),#rt-done-table thead th:nth-child(3){text-align:center !important;padding-left:8px !important;padding-right:8px !important;vertical-align:middle !important}
 </style>
 </head>
 <body>
@@ -2058,27 +2132,27 @@ button:focus,a:focus,[tabindex]:focus,.tr-click:focus{outline:none !important}
   <div class="stat-row" style="grid-template-columns:repeat(6,1fr);margin-bottom:6px;height:36px" id="db-stat-row"></div>
 
    <!-- Charts — all together in a professional grid -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;flex-shrink:0">
+  <div id="db-chart-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;flex-shrink:0">
 
-    <div class="dash-chart-card" style="--cc-a:#eef2ff;--cc-b:#e0e7ff;--cc-border:#c7d2fe;--cc-accent:#4338ca;">
+    <div class="dash-chart-card" style="--cc-a:#f1f3ff;--cc-b:#e4dcff;--cc-border:#c4b5fd;--cc-accent:#5b21b6;">
       <div class="dash-chart-head"><span><i class="fas fa-chart-pie"></i> Category Wise</span><span class="dash-chart-badge" id="cc-total-cat">0</span></div>
       <div style="height:185px;position:relative"><canvas id="chart-cat"></canvas></div>
       <div class="dash-chart-empty" id="chart-cat-empty">No data for this filter</div>
     </div>
 
-    <div class="dash-chart-card" style="--cc-a:#eff6ff;--cc-b:#dbeafe;--cc-border:#bfdbfe;--cc-accent:#1d4ed8;">
+    <div class="dash-chart-card" style="--cc-a:#eff6ff;--cc-b:#cfeafe;--cc-border:#93c5fd;--cc-accent:#1d4ed8;">
       <div class="dash-chart-head"><span><i class="fas fa-users"></i> Engineer Wise Tasks</span><span class="dash-chart-badge" id="cc-total-eng">0</span></div>
       <div style="height:185px;position:relative"><canvas id="chart-eng"></canvas></div>
       <div class="dash-chart-empty" id="chart-eng-empty">No data for this filter</div>
     </div>
 
-    <div class="dash-chart-card" style="--cc-a:#ecfeff;--cc-b:#cffafe;--cc-border:#a5f3fc;--cc-accent:#0e7490;">
+    <div class="dash-chart-card" style="--cc-a:#ecfdf5;--cc-b:#c9f7ee;--cc-border:#7ee0cd;--cc-accent:#0f766e;">
       <div class="dash-chart-head"><span><i class="fas fa-chart-line"></i> Day Wise Trend</span><span class="dash-chart-badge" id="cc-total-day">0</span></div>
       <div style="height:250px;position:relative"><canvas id="chart-day"></canvas></div>
       <div class="dash-chart-empty" id="chart-day-empty">No data for this filter</div>
     </div>
 
-    <div class="dash-chart-card" style="--cc-a:#fffbeb;--cc-b:#fef3c7;--cc-border:#fde68a;--cc-accent:#b45309;">
+    <div class="dash-chart-card" style="--cc-a:#fffbeb;--cc-b:#fde8c8;--cc-border:#fdba74;--cc-accent:#c2410c;">
       <div class="dash-chart-head"><span><i class="fas fa-toolbox"></i> Task Type Wise</span><span class="dash-chart-badge" id="cc-total-tt">0</span></div>
       <div style="height:185px;position:relative"><canvas id="chart-tt"></canvas></div>
       <div class="dash-chart-empty" id="chart-tt-empty">No data for this filter</div>
@@ -2396,18 +2470,20 @@ button:focus,a:focus,[tabindex]:focus,.tr-click:focus{outline:none !important}
           </span>
         </div>
         <div class="tbl-wrap">
-          <table style="min-width:860px">
+          <table style="min-width:0;width:100%">
             <thead>
               <tr style="background:linear-gradient(90deg,#5384d3,#1565c0)">
-                <th style="color:#fff;border:1px solid #6a93dc;min-width:150px;text-align:center;font-family:'Exo 2',sans-serif;font-size:.78rem;letter-spacing:.3px;font-weight:800;text-shadow:none">Engineer Name</th>
-                <th style="color:#fff;border:1px solid #6a93dc;text-align:center;font-family:'Exo 2',sans-serif;font-size:.72rem;font-weight:800;text-shadow:none">Troubleshoot</th>
-                <th style="color:#fff;border:1px solid #6a93dc;text-align:center;font-family:'Exo 2',sans-serif;font-size:.72rem;font-weight:800;text-shadow:none">Installation</th>
-                <th style="color:#fff;border:1px solid #6a93dc;text-align:center;font-family:'Exo 2',sans-serif;font-size:.72rem;font-weight:800;text-shadow:none">CR</th>
-                <th style="color:#fff;border:1px solid #6a93dc;text-align:center;font-family:'Exo 2',sans-serif;font-size:.72rem;font-weight:800;text-shadow:none">Survey</th>
-                <th style="color:#fff;border:1px solid #6a93dc;text-align:center;font-family:'Exo 2',sans-serif;font-size:.72rem;font-weight:800;text-shadow:none">BNOC Work</th>
-                <th style="color:#fff;border:1px solid #6a93dc;text-align:center;font-family:'Exo 2',sans-serif;font-size:.72rem;font-weight:800;text-shadow:none">Non Ticket</th>
-                <th style="color:#fff;border:1px solid #6a93dc;text-align:center;font-family:'Exo 2',sans-serif;font-size:.72rem;font-weight:800;text-shadow:none">Total Work</th>
-                <th style="color:#fff;border:1px solid #6a93dc;text-align:center;font-family:'Exo 2',sans-serif;font-size:.72rem;font-weight:800;text-shadow:none">Phone Support</th>
+                <th rowspan="2" style="color:#fff;border:1px solid #6a93dc;min-width:120px;text-align:center;font-family:'Exo 2',sans-serif;font-size:.78rem;letter-spacing:.3px;font-weight:800;text-shadow:none">Engineer Name</th>
+                <th colspan="3" class="h-ts h-grp h-start" style="color:#fff;border:1px solid #6a93dc;text-align:center;font-family:'Exo 2',sans-serif;font-size:.72rem;font-weight:800;text-shadow:none">Troubleshoot</th>
+                <th colspan="3" class="h-ins h-grp h-start" style="color:#fff;border:1px solid #6a93dc;text-align:center;font-family:'Exo 2',sans-serif;font-size:.72rem;font-weight:800;text-shadow:none">Installation</th>
+                <th colspan="3" class="h-cr h-grp h-start" style="color:#fff;border:1px solid #6a93dc;text-align:center;font-family:'Exo 2',sans-serif;font-size:.72rem;font-weight:800;text-shadow:none">CR</th>
+                <th rowspan="2" style="color:#fff;border:1px solid #6a93dc;text-align:center;font-family:'Exo 2',sans-serif;font-size:.72rem;font-weight:800;text-shadow:none">Survey</th>
+                <th rowspan="2" style="color:#fff;border:1px solid #6a93dc;text-align:center;font-family:'Exo 2',sans-serif;font-size:.72rem;font-weight:800;text-shadow:none">BNOC Work</th>
+                <th rowspan="2" style="color:#fff;border:1px solid #6a93dc;text-align:center;font-family:'Exo 2',sans-serif;font-size:.72rem;font-weight:800;text-shadow:none">Non Ticket</th>
+                <th rowspan="2" style="color:#fff;border:1px solid #6a93dc;text-align:center;font-family:'Exo 2',sans-serif;font-size:.72rem;font-weight:800;text-shadow:none">Total Work</th>
+              </tr>
+              <tr class="tr-subhead" style="background:linear-gradient(90deg,#5384d3,#1565c0)">
+                <th class="h-ts h-sub h-start" style="color:#fff;border:1px solid #6a93dc;text-align:center;font-family:'Exo 2',sans-serif;font-size:.72rem;font-weight:800;text-shadow:none;font-size:.66rem">Phone</th><th class="h-ts h-sub" style="color:#fff;border:1px solid #6a93dc;text-align:center;font-family:'Exo 2',sans-serif;font-size:.72rem;font-weight:800;text-shadow:none;font-size:.66rem">Physical</th><th class="h-ts h-sub" style="color:#fff;border:1px solid #6a93dc;text-align:center;font-family:'Exo 2',sans-serif;font-size:.72rem;font-weight:800;text-shadow:none;font-size:.66rem">Back Office</th><th class="h-ins h-sub h-start" style="color:#fff;border:1px solid #6a93dc;text-align:center;font-family:'Exo 2',sans-serif;font-size:.72rem;font-weight:800;text-shadow:none;font-size:.66rem">Phone</th><th class="h-ins h-sub" style="color:#fff;border:1px solid #6a93dc;text-align:center;font-family:'Exo 2',sans-serif;font-size:.72rem;font-weight:800;text-shadow:none;font-size:.66rem">Physical</th><th class="h-ins h-sub" style="color:#fff;border:1px solid #6a93dc;text-align:center;font-family:'Exo 2',sans-serif;font-size:.72rem;font-weight:800;text-shadow:none;font-size:.66rem">Back Office</th><th class="h-cr h-sub h-start" style="color:#fff;border:1px solid #6a93dc;text-align:center;font-family:'Exo 2',sans-serif;font-size:.72rem;font-weight:800;text-shadow:none;font-size:.66rem">Phone</th><th class="h-cr h-sub" style="color:#fff;border:1px solid #6a93dc;text-align:center;font-family:'Exo 2',sans-serif;font-size:.72rem;font-weight:800;text-shadow:none;font-size:.66rem">Physical</th><th class="h-cr h-sub" style="color:#fff;border:1px solid #6a93dc;text-align:center;font-family:'Exo 2',sans-serif;font-size:.72rem;font-weight:800;text-shadow:none;font-size:.66rem">Back Office</th>
               </tr>
             </thead>
             <tbody id="tr-summary-tbody"></tbody>
@@ -3159,7 +3235,8 @@ function canDeleteTicket(t) {
 
 function canDeleteMyTask(ticket) {
   if (!currentUser) return false;
-  return true;
+  if (currentUser.role === 'admin' || currentUser.username === 'ahsan') return true;
+  return isOwnTicket(ticket);
 }
 
 function setupUserUI() {
@@ -4241,6 +4318,11 @@ function toggleSidebarCollapse(force){
   }
   function showTip(el){
     const sb = document.getElementById('app-sidebar');
+    // Hide native browser tooltip always (also when the sidebar is expanded and the label is already visible)
+    if(el.hasAttribute('title')){
+      el.dataset.titleBackup = el.getAttribute('title');
+      el.removeAttribute('title');
+    }
     if(!sb || !sb.classList.contains('collapsed') || window.innerWidth <= 900) return;
     const labelEl = el.querySelector('.nav-label');
     const text = (labelEl ? labelEl.textContent : el.getAttribute('title') || '').trim();
@@ -4850,7 +4932,7 @@ function renderFiberTeamTickets(){
   // Sidebar badge count (active tasks only, excluding done)
   const badge = document.getElementById('nav-running-count');
   if(badge){
-    if(activeCount > 0){ badge.style.display='inline-block'; badge.textContent = activeCount; }
+    if(activeCount > 0){ badge.style.display='inline-flex'; badge.textContent = activeCount; }
     else { badge.style.display='none'; }
   }
 
@@ -5324,8 +5406,9 @@ function buildRows(arr,tbodyId,withDel,isMyTask,startIdx=0){
 }
 async function delTicket(fk, fromMyTask){
   if(fromMyTask){
-    // My Task: user can only delete their own (already enforced by button visibility)
-    if(!currentUser){toast('❌ Permission denied!');return;}
+    // My Task: user can only delete their own task (admin & ahsan can delete any)
+    const _mt = tickets.find(x => String(x.firebaseKey||x.id) === String(fk));
+    if(!currentUser || !_mt || !canDeleteMyTask(_mt)){toast('❌ Permission denied! You can only delete your own tasks.');return;}
   } else {
     // All Completed Tasks: admin & ahsan can delete any ticket, everyone else only their own
     const _t = tickets.find(x => String(x.firebaseKey||x.id) === String(fk));
@@ -5518,7 +5601,8 @@ function renderReport(){
   // Build engineer summary — always show all engineers
   const sb=document.getElementById('tr-summary-tbody');
   const engList = getEngineersList();
-  let totalTS=0,totalIN=0,totalCR=0,totalSV=0,totalBN=0,totalNT=0,totalTW=0,totalPS=0;
+  let totalTS=0,totalIN=0,totalCR=0,totalSV=0,totalBN=0,totalNT=0,totalTW=0;
+  const subTot={tsph:0,tsphy:0,tsbo:0,insph:0,insphy:0,insbo:0,crph:0,crphy:0,crbo:0};
 
   // All BNOC=YES tickets count under Ahsanul Kabir regardless of who submitted
   const ahsanName = 'Ahsanul Kabir';
@@ -5532,7 +5616,8 @@ function renderReport(){
     const cr=et.filter(t=>t.cat==='CR').length;
     const sv=et.filter(t=>t.cat==='Survey').length;
     const nt=et.filter(t=>t.cat==='Non Ticket').length;
-    const ps=et.filter(t=>t.tt==='Phone support').length;
+    const sc=cat=>{const a=et.filter(t=>t.cat===cat);const f=v=>a.filter(t=>fmtTaskType(t.tt)===v).length;return [f('Phone support'),f('Physical support'),f('Back office support')];};
+    const [tsPh,tsPhy,tsBo]=sc('Troubleshoot'), [insPh,insPhy,insBo]=sc('Installation'), [crPh,crPhy,crBo]=sc('CR');
 
     let bn, tw;
     if(eng===ahsanName){
@@ -5547,35 +5632,42 @@ function renderReport(){
       tw = ts+ins+cr+sv+nt;
     }
 
-    totalTS+=ts;totalIN+=ins;totalCR+=cr;totalSV+=sv;totalBN+=bn;totalNT+=nt;totalTW+=tw;totalPS+=ps;
-    const cell=(v,col)=>`<td style="text-align:center;font-family:'Exo 2',sans-serif;padding:3px 4px;">
-  <span class="tr-click" title="Click to view details" onclick="openTaskDetail('eng','${encodeURIComponent(eng)}','${col}')" style="display:inline-flex;align-items:center;justify-content:center;width:25px;height:25px;border-radius:50%;font-size:.82rem;font-weight:800;
+    totalTS+=ts;Object.entries({tsph:tsPh,tsphy:tsPhy,tsbo:tsBo,insph:insPh,insphy:insPhy,insbo:insBo,crph:crPh,crphy:crPhy,crbo:crBo}).forEach(([k,v])=>{subTot[k]+=v;});totalIN+=ins;totalCR+=cr;totalSV+=sv;totalBN+=bn;totalNT+=nt;totalTW+=tw;
+    const grpOf=col=>{const m=/^(ts|ins|cr)(phy|ph|bo)$/.exec(col);return m?m[1]:'';};
+    const tdCls=col=>{const g=grpOf(col);return g?('g-'+g+(/ph$/.test(col)?' g-start':'')):'';};
+    const cell=(v,col)=>`<td class="${tdCls(col)}" style="text-align:center;font-family:'Exo 2',sans-serif;padding:3px 2px;">
+  <span class="tr-click${v>0?' tr-nz':''}" data-g="${grpOf(col)}" title="Click to view details" onclick="openTaskDetail('eng','${encodeURIComponent(eng)}','${col}')" style="display:inline-flex;align-items:center;justify-content:center;width:25px;height:25px;border-radius:50%;font-size:.82rem;font-weight:800;
   background:${v>0?'linear-gradient(135deg,#dbeafe,#bfdbfe)':'#f1f5f9'};
   color:${v>0?'#1d4ed8':'#b0bec5'};
   border:1.5px solid ${v>0?'#93c5fd':'#e2e8f0'};">${v}</span></td>`;
     return `<tr>
       <td style="font-weight:800;font-family:'Exo 2',sans-serif;color:var(--navy);font-size:1rem;padding:4px 10px;">${eng}</td>
-      ${cell(ts,'ts')}${cell(ins,'ins')}${cell(cr,'cr')}${cell(sv,'sv')}${cell(bn,'bn')}${cell(nt,'nt')}
+      ${cell(tsPh,'tsph')}${cell(tsPhy,'tsphy')}${cell(tsBo,'tsbo')}${cell(insPh,'insph')}${cell(insPhy,'insphy')}${cell(insBo,'insbo')}${cell(crPh,'crph')}${cell(crPhy,'crphy')}${cell(crBo,'crbo')}${cell(sv,'sv')}${cell(bn,'bn')}${cell(nt,'nt')}
       <td style="text-align:center;font-family:'Exo 2',sans-serif;padding:3px 4px;">
   <span class="tr-click" title="Click to view details" onclick="openTaskDetail('eng','${encodeURIComponent(eng)}','tw')" style="display:inline-flex;align-items:center;justify-content:center;width:25px;height:25px;height:32px;border-radius:50%;font-size:.9rem;font-weight:900;
   background:${tw>0?'linear-gradient(135deg,#fed7aa,#fdba74)':'#f1f5f9'};
   color:${tw>0?'#c2410c':'#90a4ae'};
   border:2px solid ${tw>0?'#fb923c':'#e2e8f0'};">${tw}</span></td>
-      ${cell(ps,'ps')}
     </tr>`;
   }).join('');
 
   // Total row
+  const totTd=(v,col,extra='')=>`<td class="${(()=>{const m=/^(ts|ins|cr)(phy|ph|bo)$/.exec(col);return m?('g-'+m[1]+(/ph$/.test(col)?' g-start':'')):'';})()}" style="text-align:center;font-weight:900;color:#15803d;font-family:'Exo 2',sans-serif;font-size:1.3rem${extra}"><span class="tr-click tr-tot" title="Click to view details" onclick="openTaskDetail('eng','*','${col}')">${v}</span></td>`;
   sb.innerHTML+=`<tr style="background:linear-gradient(90deg,#f0fdf4,#dcfce7);border-top:2px solid #16a34a">
     <td style="font-weight:900;font-family:'Exo 2',sans-serif;color:#14532d;font-size:.84rem;letter-spacing:.5px;-webkit-text-stroke:0">TOTAL</td>
-    <td style="text-align:center;font-weight:900;color:#15803d;font-family:'Exo 2',sans-serif;font-size:1.3rem"><span class="tr-click tr-tot" title="Click to view details" onclick="openTaskDetail('eng','*','ts')">${totalTS}</span></td>
-    <td style="text-align:center;font-weight:900;color:#15803d;font-family:'Exo 2',sans-serif;font-size:1.3rem"><span class="tr-click tr-tot" title="Click to view details" onclick="openTaskDetail('eng','*','ins')">${totalIN}</span></td>
-    <td style="text-align:center;font-weight:900;color:#15803d;font-family:'Exo 2',sans-serif;font-size:1.3rem"><span class="tr-click tr-tot" title="Click to view details" onclick="openTaskDetail('eng','*','cr')">${totalCR}</span></td>
-    <td style="text-align:center;font-weight:900;color:#15803d;font-family:'Exo 2',sans-serif;font-size:1.3rem"><span class="tr-click tr-tot" title="Click to view details" onclick="openTaskDetail('eng','*','sv')">${totalSV}</span></td>
-    <td style="text-align:center;font-weight:900;color:#15803d;font-family:'Exo 2',sans-serif;font-size:1.3rem"><span class="tr-click tr-tot" title="Click to view details" onclick="openTaskDetail('eng','*','bn')">${totalBN}</span></td>
-    <td style="text-align:center;font-weight:900;color:#15803d;font-family:'Exo 2',sans-serif;font-size:1.3rem"><span class="tr-click tr-tot" title="Click to view details" onclick="openTaskDetail('eng','*','nt')">${totalNT}</span></td>
-    <td style="text-align:center;font-weight:900;color:#15803d;font-family:'Exo 2',sans-serif;font-size:1.3rem;background:rgba(22,163,74,.15)"><span class="tr-click tr-tot" title="Click to view details" onclick="openTaskDetail('eng','*','tw')">${totalTW}</span></td>
-    <td style="text-align:center;font-weight:900;color:#15803d;font-family:'Exo 2',sans-serif;font-size:1.3rem"><span class="tr-click tr-tot" title="Click to view details" onclick="openTaskDetail('eng','*','ps')">${totalPS}</span></td>
+    ${totTd(subTot.tsph,'tsph')}
+    ${totTd(subTot.tsphy,'tsphy')}
+    ${totTd(subTot.tsbo,'tsbo')}
+    ${totTd(subTot.insph,'insph')}
+    ${totTd(subTot.insphy,'insphy')}
+    ${totTd(subTot.insbo,'insbo')}
+    ${totTd(subTot.crph,'crph')}
+    ${totTd(subTot.crphy,'crphy')}
+    ${totTd(subTot.crbo,'crbo')}
+    ${totTd(totalSV,'sv')}
+    ${totTd(totalBN,'bn')}
+    ${totTd(totalNT,'nt')}
+    ${totTd(totalTW,'tw',';background:rgba(22,163,74,.15)')}
   </tr>`;
 
   renderTechReport(ranged, df, dt);
@@ -5583,7 +5675,7 @@ function renderReport(){
 
 
 // ===== Task Report: click any number -> new tab with only that column's task details =====
-const TR_COL_LABEL={ts:'Troubleshoot',ins:'Installation',cr:'CR',sv:'Survey',bn:'BNOC Work',nt:'Non Ticket',tw:'Total Work',ps:'Phone Support'};
+const TR_COL_LABEL={ts:'Troubleshoot',ins:'Installation',cr:'CR',sv:'Survey',bn:'BNOC Work',nt:'Non Ticket',tw:'Total Work',ps:'Phone Support',tsph:'Troubleshoot - Phone Support',tsphy:'Troubleshoot - Physical Support',tsbo:'Troubleshoot - Back Office Support',insph:'Installation - Phone Support',insphy:'Installation - Physical Support',insbo:'Installation - Back Office Support',crph:'CR - Phone Support',crphy:'CR - Physical Support',crbo:'CR - Back Office Support',svph:'Survey - Phone Support',svphy:'Survey - Physical Support',svbo:'Survey - Back Office Support'};
 function getReportTasks(kind,who,col,df,dt){
   const inRange=t=>(!df||t.date>=df)&&(!dt||t.date<=dt);
   if(kind==='tech'){
@@ -5601,6 +5693,11 @@ function getReportTasks(kind,who,col,df,dt){
   const five=['Troubleshoot','Installation','CR','Survey','Non Ticket'];
   if(catMap[col]) return mine.filter(t=>t.cat===catMap[col]);
   if(col==='ps') return mine.filter(t=>t.tt==='Phone support');
+  const subM=/^(ts|ins|cr)(phy|ph|bo)$/.exec(col);
+  if(subM){
+    const cat=catMap[subM[1]], tt={ph:'Phone support',phy:'Physical support',bo:'Back office support'}[subM[2]];
+    return mine.filter(t=>t.cat===cat&&fmtTaskType(t.tt)===tt);
+  }
   if(col==='bn'){
     if(who==='*'||who===ahsan) return ownB.concat(extra);
     return [];
@@ -6911,9 +7008,9 @@ function toggleChartEmpty(id, isEmpty){
   const el = document.getElementById(id+"-empty");
   if(el) el.classList.toggle("show", isEmpty);
 }
-const ENG_COLORS   = ['#185FA5','#0F6E56','#BA7517','#A32D2D','#534AB7','#0891b2','#3B6D11','#D4537E','#EA580C'];
-const CAT_COLORS   = {'Installation':'#185FA5','Troubleshoot':'#A32D2D','CR':'#BA7517','Survey':'#3B6D11','Non Ticket':'#534AB7','Backend Support':'#0E9488'};
-const TT_COLORS    = {'Phone support':'#0891b2','Physical support':'#185FA5','Back office support':'#534AB7'};
+const ENG_COLORS   = ['#2563eb','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#84cc16','#ec4899','#f97316'];
+const CAT_COLORS   = {'Installation':'#2563eb','Troubleshoot':'#ef4444','CR':'#f59e0b','Survey':'#22c55e','Non Ticket':'#8b5cf6','Backend Support':'#06b6d4'};
+const TT_COLORS    = {'Phone support':'#0ea5e9','Physical support':'#f43f5e','Back office support':'#8b5cf6'};
 
 function getDashFiltered(){
   const month = document.getElementById('db-month').value;
@@ -7143,25 +7240,25 @@ chartDay = new Chart(document.getElementById('chart-day'),{
     datasets:[{
       label:'Tasks/Day',
       data:dayVals,
-      borderColor:'#2f6fed',
+      borderColor:'#4f46e5',
       backgroundColor:(ctx)=>{
         const {chart}=ctx;
         const {ctx:c,chartArea}=chart;
-        if(!chartArea) return 'rgba(47,111,237,.18)';
+        if(!chartArea) return 'rgba(79,70,229,.18)';
         const g=c.createLinearGradient(0,chartArea.top,0,chartArea.bottom);
-        g.addColorStop(0,'rgba(47,111,237,.38)');
-        g.addColorStop(1,'rgba(47,111,237,.02)');
+        g.addColorStop(0,'rgba(79,70,229,.38)');
+        g.addColorStop(1,'rgba(79,70,229,.02)');
         return g;
       },
       fill:true,
       tension:.4,
       borderWidth:3,
       pointBackgroundColor:'#fff',
-      pointBorderColor:'#2f6fed',
+      pointBorderColor:'#4f46e5',
       pointBorderWidth:2.5,
       pointRadius:5,
       pointHoverRadius:8,
-      pointHoverBackgroundColor:'#2f6fed',
+      pointHoverBackgroundColor:'#4f46e5',
       pointHoverBorderColor:'#fff'
     }]
   },
@@ -7193,7 +7290,7 @@ chartDay = new Chart(document.getElementById('chart-day'),{
         offset:9,
         color:'#0d1f5c',
         backgroundColor:'rgba(255,255,255,.96)',
-        borderColor:'#2f6fed',
+        borderColor:'#4f46e5',
         borderWidth:1,
         borderRadius:5,
         padding:{top:1,bottom:1,left:4,right:4},
@@ -7488,14 +7585,19 @@ document.addEventListener('DOMContentLoaded', function(){
   #tr-view-eng .tbl-top,#tr-view-tech .tbl-top{padding:10px 12px !important}
   #tr-view-eng .tbl-title,#tr-view-tech .tbl-title{font-size:clamp(.8rem,4vw,.95rem) !important}
   #tr-period-badge,#tr-tech-period-badge{font-size:clamp(.62rem,3.2vw,.74rem) !important}
-#tr-summary-tbody tr>td:nth-child(2)::before{content:'Troubleshoot'}
-  #tr-summary-tbody tr>td:nth-child(3)::before{content:'Installation'}
-  #tr-summary-tbody tr>td:nth-child(4)::before{content:'CR'}
-  #tr-summary-tbody tr>td:nth-child(5)::before{content:'Survey'}
-  #tr-summary-tbody tr>td:nth-child(6)::before{content:'BNOC Work'}
-  #tr-summary-tbody tr>td:nth-child(7)::before{content:'Non Ticket'}
-  #tr-summary-tbody tr>td:nth-child(8)::before{content:'Total Work'}
-  #tr-summary-tbody tr>td:nth-child(9)::before{content:'Phone Support'}
+#tr-summary-tbody tr>td:nth-child(2)::before{content:'Troubleshoot · Phone'}
+  #tr-summary-tbody tr>td:nth-child(3)::before{content:'Troubleshoot · Physical'}
+  #tr-summary-tbody tr>td:nth-child(4)::before{content:'Troubleshoot · Back Office'}
+  #tr-summary-tbody tr>td:nth-child(5)::before{content:'Installation · Phone'}
+  #tr-summary-tbody tr>td:nth-child(6)::before{content:'Installation · Physical'}
+  #tr-summary-tbody tr>td:nth-child(7)::before{content:'Installation · Back Office'}
+  #tr-summary-tbody tr>td:nth-child(8)::before{content:'CR · Phone'}
+  #tr-summary-tbody tr>td:nth-child(9)::before{content:'CR · Physical'}
+  #tr-summary-tbody tr>td:nth-child(10)::before{content:'CR · Back Office'}
+  #tr-summary-tbody tr>td:nth-child(11)::before{content:'Survey'}
+  #tr-summary-tbody tr>td:nth-child(12)::before{content:'BNOC Work'}
+  #tr-summary-tbody tr>td:nth-child(13)::before{content:'Non Ticket'}
+  #tr-summary-tbody tr>td:nth-child(14)::before{content:'Total Work'}
   #tr-tech-tbody tr>td:nth-child(2)::before{content:'Troubleshoot'}
   #tr-tech-tbody tr>td:nth-child(3)::before{content:'CR'}
   #tr-tech-tbody tr>td:nth-child(4)::before{content:'Installation'}
@@ -7504,6 +7606,36 @@ document.addEventListener('DOMContentLoaded', function(){
 @media (max-width:360px){
   #tr-summary-tbody tr>td:not(:first-child)::before,#tr-tech-tbody tr>td:not(:first-child)::before{min-height:2.3em;display:flex;align-items:flex-end;justify-content:center}
 }
+
+/* ===== Running Task tables: clear column separator lines ===== */
+#rt-table th:not(:last-child),#rt-done-table th:not(:last-child){border-right:1px solid rgba(255,255,255,.28) !important}
+#rt-tbody td:not(:last-child),#rt-done-tbody td:not(:last-child){border-right:1px solid #d3dcec !important}
+#rt-done-tbody td:not(:last-child){border-right:1px solid #bfdfcb !important}
+#rt-tbody td,#rt-done-tbody td{border-bottom:1px solid #dfe6f2 !important}
+#rt-done-tbody td{border-bottom:1px solid #cfe8d8 !important}
+
+/* ===== Main Dashboard: all 4 charts fit one screen, no scrollbar ===== */
+#page-maindash{min-height:0;overflow:hidden}
+#page-maindash #db-chart-grid{flex:1 1 0;min-height:340px;grid-template-rows:1fr 1fr;gap:6px !important}
+#page-maindash #db-chart-grid .dash-chart-card{display:flex;flex-direction:column;min-height:0;padding:6px 12px 6px}
+#page-maindash #db-chart-grid .dash-chart-card>div[style*="position:relative"]{height:auto !important;flex:1 1 0;min-height:0}
+@media (max-width:900px){
+  #page-maindash{overflow:visible}
+  #page-maindash #db-chart-grid{grid-template-columns:1fr;grid-template-rows:none;flex:none}
+  #page-maindash #db-chart-grid .dash-chart-card>div[style*="position:relative"]{height:230px !important;flex:none}
+}
+
+/* ===== Sidebar menu: no background highlight on hover (label animation stays) ===== */
+.sidebar .nav-item:hover:not(.active),
+.sidebar .nav-item.rep-glass:hover:not(.active){background:transparent !important;box-shadow:none !important;border-left-color:transparent !important;}
+.sidebar .nav-item:hover:not(.active)::before,
+.sidebar .nav-item.rep-glass:hover:not(.active)::before{background:none !important;}
+</style>
+<style id="nav-hover-boost">
+/* Hover: no sideways movement, badge just lifts slightly so it is clear which one the cursor is on */
+.sidebar .nav-item{transition:transform .25s ease,box-shadow .25s ease,background .4s ease,border-color .4s ease !important}
+.sidebar:not(.collapsed) .nav-item:hover{transform:translateY(-2px) !important;box-shadow:0 5px 12px rgba(0,0,0,.28) !important}
+.sidebar .nav-item:hover .nav-label{letter-spacing:.6px !important;transform:none !important}
 </style>
 </body>
 </html>
