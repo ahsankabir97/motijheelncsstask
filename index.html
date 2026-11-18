@@ -7720,6 +7720,60 @@ input::placeholder{text-align:center}
 #dashsub-fiber .fg input:not([type=checkbox]):not([type=radio]):not([type=hidden]),#dashsub-fiber .fg select,#dashsub-fiber .fg textarea{text-align:left !important;text-align-last:left !important}
 #dashsub-daily .fg input::placeholder,#dashsub-daily .fg textarea::placeholder,
 #dashsub-fiber .fg input::placeholder,#dashsub-fiber .fg textarea::placeholder{text-align:left !important}
+/* Login form: left-aligned */
+.login-field input,.login-field input::placeholder{text-align:left !important;text-align-last:left !important}
+/* Login form: same look as other forms - deep navy typed text (slightly larger), light ash placeholder */
+.login-field input{color:#14265e !important;-webkit-text-fill-color:#14265e !important;font-weight:700 !important;font-size:1rem !important}
+.login-field input::placeholder{color:#b3bcc8 !important;-webkit-text-fill-color:#b3bcc8 !important;opacity:1 !important;font-weight:500 !important;font-size:1rem !important}
+/* Synced badge: deeper green text/icon */
+.fb-status.connected,.fb-status.connected span,.fb-status.connected i{color:#15803d !important;-webkit-text-fill-color:#15803d !important;font-weight:800 !important}
+/* Frozen table header: All Completed Tasks, Used Devices, WiFi Scoring (page scrolls normally, only header sticks) */
+#page-alltask .tbl-card,#page-devices .tbl-card,#page-wifi .tbl-card{overflow:clip !important}
+#page-alltask .tbl-wrap,#page-devices .tbl-wrap,#page-wifi .tbl-wrap{overflow:visible !important}
+#page-alltask .tbl-wrap thead th,#page-devices .tbl-wrap thead th,#page-wifi .tbl-wrap thead th{position:sticky;top:0;z-index:5;background:#e8f4fd !important;box-shadow:inset 0 -2px 0 var(--border) !important}
+@media (max-width:768px){#page-alltask .tbl-wrap,#page-devices .tbl-wrap,#page-wifi .tbl-wrap{overflow-x:auto !important}}
+/* Slightly larger table header font: All Completed Tasks, Used Devices, WiFi Scoring */
+#page-alltask .tbl-wrap thead th,#page-devices .tbl-wrap thead th,#page-wifi .tbl-wrap thead th{font-size:.74rem !important;padding-top:3px !important;padding-bottom:3px !important}
+/* No gap above the frozen header: remove scroll-container top padding on these pages so rows can't show above it */
+.content:has(#page-alltask.active),.content:has(#page-devices.active),.content:has(#page-wifi.active){padding-top:0 !important}
+#page-alltask .tbl-wrap thead th,#page-devices .tbl-wrap thead th,#page-wifi .tbl-wrap thead th{top:var(--stk-top,0px) !important;background-clip:padding-box;background-color:#e8f4fd !important}
+/* Cover any gap above the frozen header so scrolling rows never show through */
+#page-alltask .tbl-wrap thead th,#page-devices .tbl-wrap thead th,#page-wifi .tbl-wrap thead th{box-shadow:0 -1px 0 var(--border),0 -6px 0 #e8f4fd,inset 0 -2px 0 var(--border) !important;z-index:20 !important}
 </style>
+<script>
+/* Frozen table header: auto-align to the very top of the scroll area (no gap, no rows showing above it) */
+(function(){
+  var PAGES='#page-alltask.active,#page-devices.active,#page-wifi.active';
+  function scroller(el){
+    for(var n=el.parentElement;n&&n!==document.body;n=n.parentElement){
+      var oy=getComputedStyle(n).overflowY;
+      if(oy==='auto'||oy==='scroll')return n;
+    }
+    return null;
+  }
+  function align(){
+    try{
+      var pg=document.querySelector(PAGES); if(!pg)return;
+      var th=pg.querySelector('.tbl-wrap thead th'); if(!th)return;
+      var tbl=th.closest('table'), sc=scroller(tbl); if(!sc)return;
+      var sr=sc.getBoundingClientRect();
+      var scale=sc.offsetHeight?sr.height/sc.offsetHeight:1; if(!scale||scale<=0)scale=1;
+      var scTop=sr.top+sc.clientTop*scale;
+      if(tbl.getBoundingClientRect().top>=scTop-1){ pg.style.removeProperty('--stk-top'); return; }
+      var gap=(th.getBoundingClientRect().top-scTop)/scale;
+      if(Math.abs(gap)<0.4)return;
+      var cur=parseFloat(pg.style.getPropertyValue('--stk-top'))||0;
+      var next=Math.max(-40,Math.min(0,cur-gap));
+      pg.style.setProperty('--stk-top',next+'px');
+    }catch(e){}
+  }
+  function bind(){
+    var sc=document.querySelector('.content'); if(!sc)return;
+    sc.addEventListener('scroll',function(){requestAnimationFrame(align);},{passive:true});
+    window.addEventListener('resize',align);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind);else bind();
+})();
+</script>
 </body>
 </html>
