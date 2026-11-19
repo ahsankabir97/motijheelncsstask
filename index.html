@@ -5148,6 +5148,32 @@ async function saveFiberAssignEdit(){
   }
 }
 
+// When "Done" is completed in Running Task, the same ticket's task in the Technician Dashboard
+// (separate Firebase project, Ongoing Tasks list) is automatically marked Done as well.
+// Matches by Ticket ID; only tasks still 'ongoing' are touched, so nothing already completed is overwritten.
+async function markTechnicianDashboardTaskDone(ticketId){
+  if(!ticketId) return false;
+  try{
+    const res = await fetch(TECH_DASH_FB_URL + '/tasks.json');
+    const data = await res.json();
+    if(!data) return false;
+    const matches = Object.entries(data).filter(([key, task]) => task && task.ticket === ticketId && task.status === 'ongoing');
+    const doneTime = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    const doneBy = (currentUser && (currentUser.name || currentUser.username)) || 'System';
+    for(const [key] of matches){
+      await fetch(`${TECH_DASH_FB_URL}/tasks/${key}.json`, {
+        method: 'PATCH',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ doneTime, remarks: 'Done', status: 'completed', doneBy })
+      });
+    }
+    return matches.length > 0;
+  } catch(e){
+    console.error('Technician Dashboard auto-done failed:', e);
+    return false;
+  }
+}
+
 // Finds the matching task(s) in the Technician Dashboard app's separate Firebase
 // project (by Ticket ID) and updates the assigned technician/engineer there too,
 // so both apps always show the same assignment for a given ticket.
@@ -5320,7 +5346,10 @@ async function submitTicket(){
     if(window._fiberDonePendingKey){
       const doneKey = window._fiberDonePendingKey;
       window._fiberDonePendingKey = null;
+      const doneFiberTicket = (window.fiberTeamTickets||[]).find(x=>x.firebaseKey===doneKey);
       const ok2 = await window._fbMarkFiberDone(doneKey);
+      // Also mark the same ticket as Done in the Technician Dashboard (Ongoing Tasks -> Completed)
+      if(ok2 && doneFiberTicket && doneFiberTicket.tki){ markTechnicianDashboardTaskDone(doneFiberTicket.tki); }
       if(ok2) toast('✅ Running Task completed & moved to All Completed Tasks! (will remain visible in Running Task until midnight)');
     }
   }
@@ -7722,6 +7751,8 @@ input::placeholder{text-align:center}
 #dashsub-fiber .fg input::placeholder,#dashsub-fiber .fg textarea::placeholder{text-align:left !important}
 /* Login form: left-aligned */
 .login-field input,.login-field input::placeholder{text-align:left !important;text-align-last:left !important}
+/* Login inputs: ID selectors so they beat the global input{text-align:center} rule — typed text & cursor start from the left */
+#l-user,#l-pass,#login-overlay .login-field input,.login-box .login-field input[type]{text-align:left !important;text-align-last:left !important;text-indent:0 !important}
 /* Login form: same look as other forms - deep navy typed text (slightly larger), light ash placeholder */
 .login-field input{color:#14265e !important;-webkit-text-fill-color:#14265e !important;font-weight:700 !important;font-size:1rem !important}
 .login-field input::placeholder{color:#b3bcc8 !important;-webkit-text-fill-color:#b3bcc8 !important;opacity:1 !important;font-weight:500 !important;font-size:1rem !important}
