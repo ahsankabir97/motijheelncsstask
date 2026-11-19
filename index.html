@@ -5125,6 +5125,7 @@ async function deleteFiberEntry(firebaseKey){
   if(t && t.status==='done' && !canDeleteCompletedToday()){ toast('❌ Permission denied!'); return; }
   if(!confirm(`Delete this entry${t&&t.tki?(' ('+t.tki+')'):''}? This cannot be undone.`)) return;
   const ok = await window._fbDeleteFiber(firebaseKey);
+  if(ok && t && t.tki) await deleteTechnicianDashboardTasks([t.tki]);
   if(ok) toast('🗑 Entry deleted successfully');
   else toast('❌ Delete failed! Check connection.');
 }
@@ -5214,6 +5215,24 @@ async function saveFiberAssignEdit(){
   }
 }
 
+// When Running Task entries are deleted, the same tickets' still-ongoing tasks are deleted from the
+// Technician Dashboard (separate Firebase project) too. Already-completed technician tasks are left alone.
+async function deleteTechnicianDashboardTasks(ticketIds){
+  const ids = (ticketIds||[]).filter(Boolean);
+  if(!ids.length) return;
+  try{
+    const res = await fetch(TECH_DASH_FB_URL + '/tasks.json');
+    const data = await res.json();
+    if(!data) return;
+    const matches = Object.entries(data).filter(([key, task]) => task && ids.includes(task.ticket) && task.status === 'ongoing');
+    for(const [key] of matches){
+      await fetch(`${TECH_DASH_FB_URL}/tasks/${key}.json`, { method: 'DELETE' });
+    }
+  } catch(e){
+    console.error('Technician Dashboard delete sync failed:', e);
+  }
+}
+
 // Full-row edit sync: patches the given fields on the Technician Dashboard task(s) that match the old Ticket ID.
 async function syncTechnicianDashboardTaskEdit(oldTicketId, fields){
   if(!oldTicketId) return;
@@ -5293,7 +5312,9 @@ async function clearAllFiberData(){
   const btn = document.getElementById('btn-clear-fiber');
   if(btn){ btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...'; }
 
+  const allTkis = (window.fiberTeamTickets||[]).map(x=>x.tki);
   const ok = await window._fbClearAllFiber();
+  if(ok) await deleteTechnicianDashboardTasks(allTkis);
 
   if(btn){ btn.disabled = false; btn.innerHTML = '<i class="fas fa-trash-alt"></i> Clear All Running Data'; }
 
