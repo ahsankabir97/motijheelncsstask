@@ -3261,9 +3261,15 @@ function canViewAdminPanel() {
   // only Admin (admin/ahsan) and Tamim, Rupchan, Amit can see these three things.
   // All other users (Nazrul, Maruf, Sayed, Arifuzzaman, Basudeb, Abu Sayed, test id etc) will not see them.
 const RUNNING_TASK_ALLOWED_USERS = ['tamim','amit','basudeb','test2'];  // + Admin role (admin/ahsan) — nobody else
+// CS-group engineers (real engineer accounts, not admin/test) can also open Running Task so they can edit their entries
+function isCSEngineerUser() {
+  if (!currentUser || ENGINEER_DROPDOWN_EXCLUDE.includes(currentUser.username)) return false;
+  const u = (typeof getUsers === 'function' ? getUsers() : {})[currentUser.username];
+  return getUserGroup(currentUser.username, u || currentUser) === 'CS';
+}
 function canSeeRunningTask() {
   if (!currentUser) return false;
-  return currentUser.role === 'admin' || RUNNING_TASK_ALLOWED_USERS.includes(currentUser.username);
+  return currentUser.role === 'admin' || RUNNING_TASK_ALLOWED_USERS.includes(currentUser.username) || isCSEngineerUser();
 }
   // The Edit and Delete buttons for data in Running Task can only be used by these 5 specific users:
   // Admin, Ahsan, Rupchan, Amit, Tamim — no one else can Edit/Delete (even if they can view the page)
@@ -3271,6 +3277,19 @@ const RUNNING_TASK_EDIT_DELETE_USERS = ['admin','ahsan','rupchan','amit','tamim'
 function canEditDeleteRunningTask() {
   if (!currentUser) return false;
   return RUNNING_TASK_EDIT_DELETE_USERS.includes(currentUser.username);
+}
+// Edit (pencil) on a Running Task entry: the Edit/Delete users (Admin etc.) can edit every entry as before;
+// CS-group engineers can edit entries whose assigned engineer is a CS engineer. Delete stays with canEditDeleteRunningTask().
+function canEditRunningTaskEntry(t) {
+  if (!currentUser) return false;
+  if (canEditDeleteRunningTask()) return true;
+  if (!isCSEngineerUser() || !t) return false;
+  const ent = Object.entries(getUsers() || {}).find(([, x]) => x && x.name === t.assignEng);
+  return !!ent && getUserGroup(ent[0], ent[1]) === 'CS';
+}
+// Completed Today (Running Task page): nobody can delete except Admin (admin role / username 'admin')
+function canDeleteCompletedToday() {
+  return !!currentUser && (currentUser.role === 'admin' || currentUser.username === 'admin');
 }
 function canExcelDownload() {
   // Now any logged-in user can export their own filtered data
@@ -5023,8 +5042,9 @@ function renderFiberTeamTickets(){
               
               <button onclick="markFiberTaskDone('${t.firebaseKey}')" class="rt-status-btn" style="background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff">Done</button>
             </div>
-            ${canEditDeleteRunningTask() ? `
+            ${canEditRunningTaskEntry(t) ? `
             <button class="btn-row-edit" onclick="openFiberAssignEdit('${t.firebaseKey}')" title="Edit Engineer/Technician" style="margin-left:6px;vertical-align:middle"><i class="fas fa-pen"></i></button>
+            ` : ''}${canEditDeleteRunningTask() ? `
             <button class="btn-row-del" onclick="deleteFiberEntry('${t.firebaseKey}')" title="Delete this entry" style="margin-left:6px;vertical-align:middle"><i class="fas fa-trash"></i></button>
             ` : ''}
           </td>
@@ -5060,7 +5080,7 @@ function renderFiberTeamTickets(){
               <span style="font-size:.6rem;opacity:.85;text-transform:uppercase;letter-spacing:.3px">Done at</span>
               ${formatDoneAt(t.doneAt)}
             </span>
-            ${canEditDeleteRunningTask() ? `<button class="btn-row-del" onclick="deleteFiberEntry('${t.firebaseKey}')" title="Delete this entry" style="margin-left:6px;vertical-align:middle"><i class="fas fa-trash"></i></button>` : ''}
+            ${canDeleteCompletedToday() ? `<button class="btn-row-del" onclick="deleteFiberEntry('${t.firebaseKey}')" title="Delete this entry" style="margin-left:6px;vertical-align:middle"><i class="fas fa-trash"></i></button>` : ''}
           </td>
         </tr>`).join('');
     }
@@ -5084,6 +5104,8 @@ async function setFiberStatus(firebaseKey, status){
 async function deleteFiberEntry(firebaseKey){
   if(!canEditDeleteRunningTask()){ toast('❌ Permission denied!'); return; }
   const t = (window.fiberTeamTickets||[]).find(x=>x.firebaseKey===firebaseKey);
+  // Completed Today entries (status 'done') can only be deleted by Admin
+  if(t && t.status==='done' && !canDeleteCompletedToday()){ toast('❌ Permission denied!'); return; }
   if(!confirm(`Delete this entry${t&&t.tki?(' ('+t.tki+')'):''}? This cannot be undone.`)) return;
   const ok = await window._fbDeleteFiber(firebaseKey);
   if(ok) toast('🗑 Entry deleted successfully');
@@ -5092,9 +5114,9 @@ async function deleteFiberEntry(firebaseKey){
 
 // ===== RUNNING TASK: EDIT ASSIGNED ENGINEER/TECHNICIAN =====
 function openFiberAssignEdit(firebaseKey){
-  if(!canEditDeleteRunningTask()){ toast('❌ Permission denied!'); return; }
   const t = (window.fiberTeamTickets||[]).find(x=>x.firebaseKey===firebaseKey);
   if(!t) return;
+  if(!canEditRunningTaskEntry(t)){ toast('❌ Permission denied!'); return; }
   document.getElementById('fa-fk').value = firebaseKey;
   document.getElementById('fa-ticket-label').textContent = t.tki ? ('- ' + t.tki) : '';
   document.getElementById('fa-eng').value = t.assignEng || '';
@@ -5106,8 +5128,9 @@ function closeFiberAssignEdit(){
   document.getElementById('fiber-assign-modal').classList.remove('show');
 }
 async function saveFiberAssignEdit(){
-  if(!canEditDeleteRunningTask()){ toast('❌ Permission denied!'); closeFiberAssignEdit(); return; }
   const firebaseKey = document.getElementById('fa-fk').value;
+  const tChk = (window.fiberTeamTickets||[]).find(x=>x.firebaseKey===firebaseKey);
+  if(!canEditRunningTaskEntry(tChk)){ toast('❌ Permission denied!'); closeFiberAssignEdit(); return; }
   const errEl = document.getElementById('fa-err');
   const newEng = document.getElementById('fa-eng').value;
   const newTech = document.getElementById('fa-tech').value;
