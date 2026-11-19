@@ -1844,9 +1844,15 @@ button:focus,a:focus,[tabindex]:focus,.tr-click:focus{outline:none !important}
 
 <!-- ===== RUNNING TASK: EDIT ASSIGNED ENGINEER/TECHNICIAN MODAL ===== -->
 <div class="modal-overlay" id="fiber-assign-modal" onclick="if(event.target===this)closeFiberAssignEdit()">
-  <div class="modal-box" style="width:380px">
-    <div class="modal-title"><i class="fas fa-user-edit"></i>Edit Assignment<span id="fa-ticket-label" style="margin-left:6px;color:var(--muted);font-weight:700;font-size:.72rem"></span></div>
+  <div class="modal-box" style="width:460px;max-height:90vh;overflow-y:auto">
+    <div class="modal-title"><i class="fas fa-user-edit"></i>Edit Running Task<span id="fa-ticket-label" style="margin-left:6px;color:var(--muted);font-weight:700;font-size:.72rem"></span></div>
     <input type="hidden" id="fa-fk">
+    <div class="modal-field"><label>Ticket ID</label><input type="text" id="fa-tki" autocomplete="off"></div>
+    <div class="modal-field"><label>Client Code</label><input type="text" id="fa-ccode" autocomplete="off"></div>
+    <div class="modal-field"><label>Client Name</label><input type="text" id="fa-cname" autocomplete="off"></div>
+    <div class="modal-field"><label>Contact</label><input type="text" id="fa-contact" autocomplete="off"></div>
+    <div class="modal-field"><label>Area</label><input type="text" id="fa-area" autocomplete="off" placeholder="One area name only"></div>
+    <div class="modal-field"><label>Address</label><input type="text" id="fa-address" autocomplete="off"></div>
     <div class="modal-field"><label>Assigned Engineer</label>
       <select id="fa-eng">
         <option value="">Select Engineer</option>
@@ -4745,12 +4751,22 @@ function autoFillFiberTicket(){
   if(cols.length){
     const last = cols[cols.length-1];
     const am = last.match(/^([^:]+):(.+)$/);
-    document.getElementById('ft-area').value = am ? am[1].trim() : last;
+    document.getElementById('ft-area').value = normalizeAreaName(am ? am[1].trim() : last);
   }
 }
 
 // ===== AUTO-ASSIGN: when a Fiber Team Ticket is submitted, the Technician Dashboard (a separate app/Firebase project)
 // automatically creates a task there, so the "Create New Assignment" form does not need to be filled manually.
+// Area accepts exactly ONE name: if several are typed/pasted (separated by , ; / | & + 'and' or new lines),
+// only the first name is kept. Extra spaces are collapsed.
+function normalizeAreaName(v){
+  let x = String(v||'').replace(/[\r\n\t]+/g,' ').trim();
+  x = x.split(/\s*[,;\/|&+]\s*|\s+(?:and|এবং)\s+/i)[0] || '';
+  return x.replace(/\s+/g,' ').trim();
+}
+document.addEventListener('change', function(e){
+  if(e.target && (e.target.id==='ft-area' || e.target.id==='fa-area')){ e.target.value = normalizeAreaName(e.target.value); }
+});
 const TECH_DASH_FB_URL = "https://link3-dashboard-default-rtdb.firebaseio.com";
 async function pushTaskToTechnicianDashboard(fiberData){
   try{
@@ -4793,7 +4809,8 @@ async function submitFiberTeamTicket(){
   const contact = document.getElementById('ft-contact').value.trim();
   const clientCat = document.getElementById('ft-clientcat').value;
   const fwdDate = document.getElementById('ft-fwddate').value;
-  const area = document.getElementById('ft-area').value.trim();
+  const area = normalizeAreaName(document.getElementById('ft-area').value);
+  document.getElementById('ft-area').value = area;
   const assignEng = document.getElementById('ft-assigneng').value;
   const assignTech = document.getElementById('ft-assigntech').value;
 
@@ -5119,6 +5136,12 @@ function openFiberAssignEdit(firebaseKey){
   if(!canEditRunningTaskEntry(t)){ toast('❌ Permission denied!'); return; }
   document.getElementById('fa-fk').value = firebaseKey;
   document.getElementById('fa-ticket-label').textContent = t.tki ? ('- ' + t.tki) : '';
+  document.getElementById('fa-tki').value = t.tki || '';
+  document.getElementById('fa-ccode').value = t.clientCode || '';
+  document.getElementById('fa-cname').value = t.clientName || '';
+  document.getElementById('fa-contact').value = (t.contact && t.contact !== 'N/A') ? t.contact : '';
+  document.getElementById('fa-area').value = t.area || '';
+  document.getElementById('fa-address').value = t.address || '';
   document.getElementById('fa-eng').value = t.assignEng || '';
   document.getElementById('fa-tech').value = t.assignTech || '';
   document.getElementById('fa-err').classList.remove('show');
@@ -5136,6 +5159,19 @@ async function saveFiberAssignEdit(){
   const newTech = document.getElementById('fa-tech').value;
   errEl.classList.remove('show');
 
+  const newTki = document.getElementById('fa-tki').value.trim();
+  const newCode = document.getElementById('fa-ccode').value.trim();
+  const newName = document.getElementById('fa-cname').value.trim();
+  const newContact = document.getElementById('fa-contact').value.trim() || 'N/A';
+  const newArea = normalizeAreaName(document.getElementById('fa-area').value);
+  document.getElementById('fa-area').value = newArea;
+  const newAddress = document.getElementById('fa-address').value.trim();
+
+  if(!newTki || !newCode || !newArea || !newAddress){
+    errEl.textContent = 'Ticket ID, Client Code, Area and Address are required.';
+    errEl.classList.add('show');
+    return;
+  }
   if(!newEng || !newTech){
     errEl.textContent = 'Please select both Engineer and Technician.';
     errEl.classList.add('show');
@@ -5153,13 +5189,20 @@ async function saveFiberAssignEdit(){
   try{
     const { getDatabase, ref, update } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js");
     const db = getDatabase();
-    await update(ref(db, 'fiberTeamTickets/' + firebaseKey), { assignEng: newEng, assignTech: newTech });
+    await update(ref(db, 'fiberTeamTickets/' + firebaseKey), {
+      tki: newTki, clientCode: newCode, clientName: newName, contact: newContact,
+      area: newArea, address: newAddress, assignEng: newEng, assignTech: newTech
+    });
 
     // Keep the separate Technician Dashboard app in sync so its own task list
-    // reflects the new Engineer/Technician assignment too
-    await syncTechnicianDashboardAssignment(t.tki, newEng, newTech);
+    // reflects every edited field (matched by the OLD Ticket ID)
+    await syncTechnicianDashboardTaskEdit(t.tki, {
+      ticket: newTki, area: newArea, address: newAddress, contact: newContact,
+      clientCodeName: [newCode, newName].filter(Boolean).join(' - '),
+      person: newTech, assignedBy: newEng
+    });
 
-    toast('✅ Engineer/Technician updated successfully!');
+    toast('✅ Running Task updated successfully!');
     closeFiberAssignEdit();
   } catch(e){
     console.error(e);
@@ -5168,6 +5211,26 @@ async function saveFiberAssignEdit(){
   } finally {
     btn.disabled = false;
     btn.innerHTML = origHtml;
+  }
+}
+
+// Full-row edit sync: patches the given fields on the Technician Dashboard task(s) that match the old Ticket ID.
+async function syncTechnicianDashboardTaskEdit(oldTicketId, fields){
+  if(!oldTicketId) return;
+  try{
+    const res = await fetch(TECH_DASH_FB_URL + '/tasks.json');
+    const data = await res.json();
+    if(!data) return;
+    const matches = Object.entries(data).filter(([key, task]) => task && task.ticket === oldTicketId);
+    for(const [key] of matches){
+      await fetch(`${TECH_DASH_FB_URL}/tasks/${key}.json`, {
+        method: 'PATCH',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(fields)
+      });
+    }
+  } catch(e){
+    console.error('Technician Dashboard edit sync failed:', e);
   }
 }
 
@@ -7779,6 +7842,25 @@ input::placeholder{text-align:center}
 /* Login form: same look as other forms - deep navy typed text (slightly larger), light ash placeholder */
 .login-field input{color:#14265e !important;-webkit-text-fill-color:#14265e !important;font-weight:700 !important;font-size:1rem !important}
 .login-field input::placeholder{color:#b3bcc8 !important;-webkit-text-fill-color:#b3bcc8 !important;opacity:1 !important;font-weight:500 !important;font-size:1rem !important}
+/* Running Task (upper table): light orange rows instead of blue, deep orange text */
+@keyframes rtRowBlinkOrange{0%,100%{background-color:#ffedd5}50%{background-color:#fed7aa}}
+#rt-tbody tr,#rt-tbody tr.rt-row-pending,#rt-tbody tr.rt-row-running{background-color:#ffedd5 !important;animation:rtRowBlinkOrange 1.8s ease-in-out infinite}
+#rt-tbody tr:hover,#rt-tbody tr.rt-row-pending:hover,#rt-tbody tr.rt-row-running:hover{animation:none;background-color:#fed7aa !important}
+#rt-tbody td,#rt-tbody td *:not(.rt-status-btn):not(.btn-row-edit):not(.btn-row-del):not(i),#rt-tbody tr.rt-row-pending td,#rt-tbody tr.rt-row-running td,#rt-tbody td:nth-child(5),#rt-tbody td:nth-child(7){color:#c2410c !important;-webkit-text-fill-color:#c2410c}
+#rt-tbody td:nth-child(5) i{color:#c2410c !important}
+/* Running Task rows: height auto-fits the content (no extra padding) */
+#rt-tbody tr{height:auto !important}
+#rt-tbody td,#rt-tbody td:nth-child(3),#rt-tbody td:nth-child(5),#rt-tbody td:nth-child(6),#rt-tbody td:nth-child(7){padding-top:2px !important;padding-bottom:2px !important;line-height:1.2 !important;height:auto !important;vertical-align:middle !important}
+#rt-tbody td .rt-action-group,#rt-tbody td .btn-row-edit,#rt-tbody td .btn-row-del{margin-top:0 !important;margin-bottom:0 !important}
+#rt-tbody td:nth-child(3) div{line-height:1.2 !important}
+#fiber-assign-modal .modal-field input{text-align:left !important;text-align-last:left !important}
+/* Done button text stays white (the td text-fill color is inherited otherwise) */
+#rt-tbody .rt-status-btn,#rt-tbody .rt-status-btn *{color:#fff !important;-webkit-text-fill-color:#fff !important}
+/* Client Info column ~1/4 narrower (about 400px -> 300px) in both tables */
+#rt-table th:nth-child(3),#rt-done-table th:nth-child(3),#rt-tbody td:nth-child(3),#rt-done-tbody td:nth-child(3){width:300px !important;min-width:0 !important;max-width:300px !important}
+/* Client Info column (both Running + Completed Today tables): data centered */
+#rt-tbody td:nth-child(3),#rt-done-tbody td:nth-child(3),#rt-table th:nth-child(3),#rt-done-table th:nth-child(3){text-align:center !important;padding-left:8px !important;padding-right:8px !important}
+#rt-tbody td:nth-child(3) *,#rt-done-tbody td:nth-child(3) *{text-align:center !important}
 /* Synced badge: deeper green text/icon */
 .fb-status.connected,.fb-status.connected span,.fb-status.connected i{color:#15803d !important;-webkit-text-fill-color:#15803d !important;font-weight:800 !important}
 /* Frozen table header: All Completed Tasks, Used Devices, WiFi Scoring (page scrolls normally, only header sticks) */
