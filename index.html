@@ -2366,7 +2366,7 @@ button:focus,a:focus,[tabindex]:focus,.tr-click:focus{outline:none !important}
             </div>
           </div>
         </div>
-        <div class="submit-row" style="justify-content:flex-end">
+        <div class="submit-row" style="justify-content:flex-end;gap:10px;align-items:center">
           <button class="btn-submit" onclick="submitFiberTeamTicket()"><i class="fas fa-paper-plane"></i> Submit Assigned Ticket</button>
         </div>
       </div>
@@ -3279,7 +3279,7 @@ function canSeeRunningTask() {
 }
   // The Edit and Delete buttons for data in Running Task can only be used by these 5 specific users:
   // Admin, Ahsan, Rupchan, Amit, Tamim — no one else can Edit/Delete (even if they can view the page)
-const RUNNING_TASK_EDIT_DELETE_USERS = ['admin','ahsan','rupchan','amit','tamim','test2'];
+const RUNNING_TASK_EDIT_DELETE_USERS = ['admin','ahsan','rupchan','amit','tamim','basudeb','test2'];
 function canEditDeleteRunningTask() {
   if (!currentUser) return false;
   return RUNNING_TASK_EDIT_DELETE_USERS.includes(currentUser.username);
@@ -4798,6 +4798,97 @@ async function pushTaskToTechnicianDashboard(fiberData){
   }
 }
 
+// ===== WHATSAPP: send assigned ticket to technician =====
+// Technician WhatsApp numbers (international format, no + or spaces). Fill in real numbers here.
+const TECH_WA_NUMBERS = {
+  'Sumon':  '8801813075887',
+  'Alamin': '8801787667638',
+  'Nahid':  '8801700799344',
+  'Fahim':  '8801787686064'
+};
+// Engineer cell numbers (matched by name prefix, so "Basudeb"/"Bashudeb" both work)
+const ENG_CELL_NUMBERS = {
+  'ahsan':  '01787667193',
+  'tamim':  '01701205796',
+  'amit':   '01798419613',
+  'bashu':  '01883764957',
+  'basu':   '01883764957'
+};
+function getEngCell(name){
+  const n=(name||'').toLowerCase();
+  for(const k in ENG_CELL_NUMBERS){ if(n.startsWith(k)) return ENG_CELL_NUMBERS[k]; }
+  return '';
+}
+function getTechWaNumber(name){
+  let num = (TECH_WA_NUMBERS[name]||'').replace(/\D/g,'');
+  if(!num){
+    try{ num = (localStorage.getItem('techWa_'+name)||'').replace(/\D/g,''); }catch(e){}
+  }
+  if(!num){
+    const v = prompt('WhatsApp number for '+name+' (e.g. 01712345678):');
+    if(!v) return '';
+    num = v.replace(/\D/g,'');
+    if(num.startsWith('0')) num = '88'+num;       // 01XXXXXXXXX -> 8801XXXXXXXXX
+    else if(num.length===10) num = '880'+num;
+    try{ localStorage.setItem('techWa_'+name, num); }catch(e){}
+  } else if(num.startsWith('0')) num='88'+num;
+  return num;
+}
+function buildTechWaMessage(d){
+  // Clean Client ID / Name even if the field has extra text glued on (e.g. "259150:1Mohammad Abdur Rab01711200088")
+  let id=(d.clientCode||'').trim(), name=(d.clientName||'').trim();
+  const m=id.match(/^(\d{3,10}(?::\d+)?)\s*(.*)$/);
+  if(m){ id=m[1]; if(!name) name=m[2]; }
+  name=name.replace(/\+?(?:880)?0?1[3-9]\d{8}\s*$/,'').replace(/^[\s:\-]+|[\s:\-]+$/g,'');
+  return [
+    '*New Assigned Ticket* @ '+new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}).replace(' ','').toUpperCase(),
+    '',
+    '*Ticket ID:* '+d.tki,
+    '*Client ID:* '+id,
+    '*Client Name:* '+(name||'N/A'),
+    '*Client Cell No:* '+d.contact,
+    '*Client Address:* '+d.address,
+    '*Area:* '+d.area
+  ].join('\n');
+}
+
+// ===== AUTO-SEND via WhatsApp gateway (UltraMsg). One WhatsApp number per engineer, linked once by QR scan. =====
+// Create an instance for each engineer at ultramsg.com, scan the QR with that engineer's WhatsApp,
+// then paste the instance id + token below. Leave empty = falls back to opening WhatsApp manually.
+const WA_GATEWAY = {
+  'ahsan': { instance:'', token:'' },   // Ahsanul Kabir  01787667193
+  'tamim': { instance:'', token:'' },   // Tamim          01701205796
+  'amit':  { instance:'', token:'' },   // Amit           01798419613
+  'bashu': { instance:'', token:'' },   // Bashudeb       01883764957
+  'basu':  { instance:'', token:'' }
+};
+function getWaGateway(eng){
+  const n=(eng||'').toLowerCase();
+  for(const k in WA_GATEWAY){ if(n.startsWith(k) && WA_GATEWAY[k].instance && WA_GATEWAY[k].token) return WA_GATEWAY[k]; }
+  return null;
+}
+// Opens the technician's chat in WhatsApp straight away (no landing page, no new tab).
+// Must be called directly from the click so the browser allows it.
+function openWaDirect(num, text){
+  const a=document.createElement('a');
+  a.href='whatsapp://send?phone='+num+'&text='+encodeURIComponent(text);
+  document.body.appendChild(a); a.click(); a.remove();
+}
+async function autoSendTechWa(d){
+  const gw=getWaGateway(d.assignEng);
+  const to=TECH_WA_NUMBERS[d.assignTech];
+  if(!gw||!to) return false;
+  try{
+    const r=await fetch('https://api.ultramsg.com/'+gw.instance+'/messages/chat',{
+      method:'POST',
+      headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body:new URLSearchParams({token:gw.token,to:'+'+to,body:buildTechWaMessage(d)})
+    });
+    const j=await r.json();
+    return !!(j && (j.sent==='true'||j.sent===true||j.id));
+  }catch(e){ return false; }
+}
+
 async function submitFiberTeamTicket(){
   const tki = document.getElementById('ft-tki').value.trim();
   const clientCodeName = document.getElementById('ft-clientcodename').value.trim();
@@ -4821,9 +4912,9 @@ async function submitFiberTeamTicket(){
     return;
   }
 
+  const waNum = getTechWaNumber(assignTech);
+  const waWin = null;
   const btn=document.querySelector('#dashsub-fiber .btn-submit');
-  btn.disabled=true;
-  btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Saving...';
 
   const fiberData={
     id:Date.now()+Math.random(),
@@ -4836,21 +4927,30 @@ async function submitFiberTeamTicket(){
     submittedBy: currentUser ? currentUser.username : 'unknown'
   };
 
-  const ok=await window._fbPushFiber(fiberData);
+  // Snapshot of the form so it can be restored if saving fails
+  const ids=['ft-tki','ft-clientcodename','ft-address','ft-contact','ft-area','ft-pastebox','ft-clientcat','ft-fwddate','ft-assigntech'];
+  const snap={}; ids.forEach(i=>snap[i]=document.getElementById(i).value);
 
-  btn.disabled=false;
-  btn.innerHTML='<i class="fas fa-paper-plane"></i> Submit Assigned Ticket';
+  // Instant feedback: open WhatsApp, clear the form and free the button right away; saving continues in the background
+  const useGw=!!getWaGateway(assignEng);
+  if(!useGw && waNum) openWaDirect(waNum, buildTechWaMessage(fiberData));
+  toast('⏳ Saving ticket...');
+  ids.forEach(i=>document.getElementById(i).value='');
+  autoSetFiberEngineer(); // Assigned Engineer stays fixed to the logged-in user's name
+  btn.disabled=true;
+  setTimeout(()=>{ btn.disabled=false; },600); // brief guard against double-click
+
+  const ok=await window._fbPushFiber(fiberData);
 
   if(ok){
     toast('✅ Running Task saved successfully!');
-    pushTaskToTechnicianDashboard(fiberData); // best-effort, ticket already saved so UI doesn't wait on this
-    ['ft-tki','ft-clientcodename','ft-address','ft-contact','ft-area','ft-pastebox'].forEach(i=>document.getElementById(i).value='');
-    document.getElementById('ft-clientcat').value='';
-    document.getElementById('ft-fwddate').value='';
-    document.getElementById('ft-assigntech').value='';
-    autoSetFiberEngineer(); // Assigned Engineer stays fixed to the logged-in user's name, will not reset
+    if(useGw){ autoSendTechWa(fiberData).then(sent=>toast(sent?'✅ WhatsApp sent to '+assignTech:'⚠ Ticket saved, but WhatsApp auto-send failed')); }
+    else if(!waNum){ toast('⚠ Technician WhatsApp number not set — message not sent'); }
+    pushTaskToTechnicianDashboard(fiberData); // best-effort
   } else {
-    toast('❌ Failed to save Running Task! Check connection.');
+    // Save failed: put the data back so nothing has to be retyped
+    ids.forEach(i=>{ const el=document.getElementById(i); if(el && !el.value) el.value=snap[i]; });
+    toast('❌ Failed to save Running Task! Check connection.'+(!useGw&&waNum?' (WhatsApp message was already opened)':''));
   }
 }
 
