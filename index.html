@@ -209,6 +209,7 @@ onValue(ticketsRef, (snapshot) => {
       });
       tickets.sort((a, b) => (b.id || 0) - (a.id || 0));
     }
+    if (typeof renderFiberTeamTickets === 'function' && window.rtDoneFrom) renderFiberTeamTickets();
     // Only render the active page
     const pages = ['mytask','alltask','devices','wifi','taskreport'];
     pages.forEach(pg => {
@@ -248,12 +249,21 @@ onValue(waLogsRef, (snapshot) => {
     const data = snapshot.val();
     window.waLogs = data ? Object.entries(data).map(([k,v]) => ({ ...v, firebaseKey: k })).sort((a,b) => (b.ts||0) - (a.ts||0)) : [];
     if (typeof renderWaLogs === 'function') renderWaLogs();
+    if (typeof renderFiberTeamTickets === 'function' && window.rtDoneFrom) renderFiberTeamTickets();
   }, (error) => { console.error('Firebase error (waLogs):', error); window.waLogsError = true; if (typeof renderWaLogs === 'function') renderWaLogs(); });
 window._fbPushWaLog = async function(entry) {
   try { await push(waLogsRef, entry); return true; } catch(e) { console.error('waLog push failed', e); return false; }
 };
 window._fbDeleteWaLog = async function(key) {
   try { await remove(ref(db, 'waLogs/' + key)); return true; } catch(e) { console.error(e); return false; }
+};
+window._fbImportWaLogs = async function(entries) {
+  try {
+    const updates = {};
+    entries.forEach(e => { updates[push(waLogsRef).key] = e; });
+    await update(waLogsRef, updates);
+    return true;
+  } catch(e) { console.error('waLog import failed', e); return false; }
 };
 window._fbClearWaLogs = async function() {
   try { await remove(waLogsRef); return true; } catch(e) { console.error(e); return false; }
@@ -950,6 +960,24 @@ tbody tr:hover td{background:#f0f8ff}
 .um-table td:last-child{border-right:none}
 .um-table tr:last-child td{border-bottom:none}
 .um-table tr:hover td{background:#f0f8ff}
+/* WhatsApp Logs: Client ID & Name column = 75% of natural width, longer text wraps */
+/* Back Office Support Assign: assigned date & time beside Assigned Tech */
+#rt-tbody .rt-tech-wrap{display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
+#rt-tbody td .rt-tech-wrap .rt-assign-at-sm{display:inline-flex;flex-direction:column;align-items:center;background:#fff;border:1px solid #fdba74;border-radius:6px;padding:0 5px;line-height:1.1}
+#rt-tbody td .rt-tech-wrap .rt-assign-at-sm span.rt-fwd-date,#rt-tbody td .rt-tech-wrap .rt-assign-at-sm span.rt-fwd-time{font-size:.56rem !important;line-height:1.1 !important;font-weight:800 !important;opacity:1}
+/* Completed Today: assigned date & time beside Assigned Tech */
+#rt-done-tbody .rt-tech-wrap{display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
+#rt-done-tbody td .rt-tech-wrap .rt-assign-at-sm{display:inline-flex;flex-direction:column;align-items:center;background:#fff;border:1px solid #bfe6cd;border-radius:6px;padding:0 5px;line-height:1.1;color:#15803d}
+#rt-done-tbody td .rt-tech-wrap .rt-assign-at-sm span.rt-fwd-date,#rt-done-tbody td .rt-tech-wrap .rt-assign-at-sm span.rt-fwd-time{font-size:.56rem !important;line-height:1.1 !important;font-weight:800 !important;opacity:1;color:#15803d !important}
+/* Action column: shrink to fit its content in both tables */
+#rt-table th:nth-child(8),#rt-done-table th:nth-child(8),#rt-tbody td:nth-child(8),#rt-done-tbody td:nth-child(8){width:1% !important;white-space:nowrap !important;padding-left:5px !important;padding-right:5px !important}
+/* WhatsApp Logs: compact auto-fit rows */
+#wal-tbody td{padding:2px 10px !important;line-height:1.15 !important;height:auto}
+#wal-tbody td.wal-client{line-height:1.15 !important}
+#wal-tbody td button{padding:3px 7px !important;font-size:.72rem;line-height:1}
+#wal-tbody td.wal-dt span{display:block;line-height:1.1;margin-top:1px}
+th.wal-dt-th,td.wal-dt{box-sizing:border-box;width:110px;min-width:110px;max-width:110px;line-height:1.3}
+td.wal-client{white-space:normal !important;word-break:break-word;overflow-wrap:anywhere;line-height:1.3}
 .um-badge-admin{display:inline-flex;align-items:center;gap:4px;background:linear-gradient(135deg,#4a78c9,#5b8def);color:#fff;border-radius:20px;padding:1px 10px;font-size:.65rem;font-weight:800;font-family:'Exo 2',sans-serif;letter-spacing:.3px;}
 .um-badge-eng{display:inline-flex;align-items:center;gap:4px;background:linear-gradient(135deg,#059669,#10b981);color:#fff;border-radius:20px;padding:1px 10px;font-size:.65rem;font-weight:800;font-family:'Exo 2',sans-serif;letter-spacing:.3px;}
 /* REPLACE WITH: */
@@ -2402,7 +2430,7 @@ button:focus,a:focus,[tabindex]:focus,.tr-click:focus{outline:none !important}
           <input type="text" id="wal-search" placeholder="Search Ticket / Client / Technician..." oninput="renderWaLogs()" style="flex:1;min-width:160px;height:30px;font-size:.74rem;padding:4px 9px;border:1.5px solid var(--border);border-radius:8px;font-family:'Exo 2',sans-serif;outline:none;text-align:left">
           <select id="wal-tech" onchange="renderWaLogs()" style="width:130px;height:30px;font-size:.74rem;padding:4px 9px;border:1.5px solid var(--border);border-radius:8px;font-family:'Exo 2',sans-serif;outline:none;text-align:left"><option value="">All Technicians</option></select>
           <select id="wal-status" onchange="renderWaLogs()" style="width:110px;height:30px;font-size:.74rem;padding:4px 9px;border:1.5px solid var(--border);border-radius:8px;font-family:'Exo 2',sans-serif;outline:none;text-align:left">
-            <option value="">All Status</option><option value="sent">Sent (Auto)</option><option value="opened">Opened (Manual)</option><option value="failed">Failed</option><option value="no_number">Number Missing</option>
+            <option value="">All Status</option><option value="sent">Sent (Auto)</option><option value="imported">Sent (Imported)</option><option value="opened">Opened (Manual)</option><option value="failed">Failed</option><option value="no_number">Number Missing</option>
           </select>
           <input type="date" id="wal-date" onchange="renderWaLogs()" style="width:125px;height:30px;font-size:.74rem;padding:4px 9px;border:1.5px solid var(--border);border-radius:8px;font-family:'Exo 2',sans-serif;outline:none;text-align:left">
           <button class="admin-edit-only" onclick="clearAllWaLogs()" title="Clear All Logs" style="background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;border:none;height:30px;padding:0 12px;border-radius:8px;font-size:.7rem;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:'Exo 2',sans-serif;white-space:nowrap"><i class="fas fa-trash"></i> Clear All</button>
@@ -2411,7 +2439,7 @@ button:focus,a:focus,[tabindex]:focus,.tr-click:focus{outline:none !important}
       <div class="tbl-card" style="flex:1;display:flex;flex-direction:column;min-height:0">
         <div class="tbl-top"><span class="tbl-title"><i class="fas fa-list-ul"></i>Message History</span><span class="tbl-badge" id="wal-cnt">0 logs</span></div>
         <div class="tbl-wrap" style="flex:1;overflow:auto"><table class="um-table">
-          <thead><tr><th>#</th><th>Date &amp; Time</th><th>Ticket ID</th><th>Client</th><th>Technician</th><th>WhatsApp No.</th><th>Assigned By</th><th>Method</th><th>Status</th><th>Actions</th></tr></thead>
+          <thead><tr><th>#</th><th class="wal-dt-th">Date &amp; Time</th><th>Ticket ID</th><th class="wal-client-th">Client ID &amp; Name</th><th>Technician</th><th>Assigned By</th><th>Actions</th></tr></thead>
           <tbody id="wal-tbody"></tbody>
         </table></div>
       </div>
@@ -2451,7 +2479,7 @@ button:focus,a:focus,[tabindex]:focus,.tr-click:focus{outline:none !important}
             <col style="width:8%">
             <col style="width:8%">
             <col style="width:8%">
-            <col style="width:16.5%">
+            <col style="width:1%">
           </colgroup>
           <thead><tr>
   <th>#</th>
@@ -2469,8 +2497,13 @@ button:focus,a:focus,[tabindex]:focus,.tr-click:focus{outline:none !important}
 
       <div class="tbl-card" style="margin-top:12px">
         <div class="tbl-top">
-          <span class="tbl-title"><i class="fas fa-check-circle"></i>Completed Today</span>
-          <span class="tbl-badge" id="rt-done-cnt">0 done</span>
+          <span class="tbl-title" id="rt-done-title"><i class="fas fa-check-circle"></i>Completed Today</span>
+          <span style="display:inline-flex;align-items:center;gap:6px">
+            <span style="font-size:.68rem;font-weight:800;color:var(--navy)">From</span><input type="date" id="rt-done-from" onchange="setRtDoneRange('from',this.value)" style="height:26px;font-size:.72rem;font-weight:800;padding:2px 6px;border:1.5px solid var(--border);border-radius:7px;font-family:'Exo 2',sans-serif;color:var(--navy);outline:none">
+            <span style="font-size:.68rem;font-weight:800;color:var(--navy)">To</span><input type="date" id="rt-done-to" onchange="setRtDoneRange('to',this.value)" style="height:26px;font-size:.72rem;font-weight:800;padding:2px 6px;border:1.5px solid var(--border);border-radius:7px;font-family:'Exo 2',sans-serif;color:var(--navy);outline:none">
+            <button type="button" onclick="window.rtDoneFrom='';window.rtDoneTo='';renderFiberTeamTickets()" title="Back to today" style="height:26px;padding:0 10px;border:none;border-radius:7px;background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;font-size:.68rem;font-weight:800;cursor:pointer;font-family:'Exo 2',sans-serif">Today</button>
+            <span class="tbl-badge" id="rt-done-cnt">0 done</span>
+          </span>
         </div>
         <div class="tbl-wrap"><table id="rt-done-table">
           <colgroup>
@@ -2482,7 +2515,7 @@ button:focus,a:focus,[tabindex]:focus,.tr-click:focus{outline:none !important}
             <col style="width:8%">
             <col style="width:8%">
             <col style="width:8%">
-            <col style="width:16.5%">
+            <col style="width:1%">
           </colgroup>
           <thead><tr>
   <th>#</th>
@@ -4893,14 +4926,14 @@ function getTechWaNumber(name){
   } else if(num.startsWith('0')) num='88'+num;
   return num;
 }
-function buildTechWaMessage(d){
+function buildTechWaMessage(d, atTs){
   // Clean Client ID / Name even if the field has extra text glued on (e.g. "259150:1Mohammad Abdur Rab01711200088")
   let id=(d.clientCode||'').trim(), name=(d.clientName||'').trim();
   const m=id.match(/^(\d{3,10}(?::\d+)?)\s*(.*)$/);
   if(m){ id=m[1]; if(!name) name=m[2]; }
   name=name.replace(/\+?(?:880)?0?1[3-9]\d{8}\s*$/,'').replace(/^[\s:\-]+|[\s:\-]+$/g,'');
   return [
-    '*New Assigned Ticket* @ '+new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}).replace(' ','').toUpperCase(),
+    '*New Assigned Ticket* @ '+new Date(atTs||Date.now()).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}).replace(' ','').toUpperCase(),
     '',
     '*Ticket ID:* '+d.tki,
     '*Client ID:* '+id,
@@ -4985,19 +5018,88 @@ function renderWaLogs(){
     if(df && new Date(l.ts).toLocaleDateString('en-CA')!==df) return false;
     if(q && !((l.tki||'')+' '+(l.clientCode||'')+' '+(l.clientName||'')+' '+(l.tech||'')+' '+(l.byName||'')).toLowerCase().includes(q)) return false;
     return true;
-  });
+  }).sort((a,b)=>(b.ts||0)-(a.ts||0));   // newest message always on top, oldest at the bottom
   document.getElementById('wal-cnt').textContent=rows.length+' log'+(rows.length===1?'':'s');
   if(!rows.length){
-    tb.innerHTML='<tr><td colspan="10" style="text-align:center;padding:26px;color:var(--muted);font-weight:700">'+(window.waLogsError?'⚠ Could not read waLogs from Firebase — check Realtime Database rules':'No WhatsApp logs found')+'</td></tr>';
+    tb.innerHTML='<tr><td colspan="6" style="text-align:center;padding:26px;color:var(--muted);font-weight:700">'+(window.waLogsError?'⚠ Could not read waLogs from Firebase — check Realtime Database rules':'No WhatsApp logs found')+'</td></tr>';
     return;
   }
-  const badge={sent:['wal-sent','fa-check-double','Sent (Auto)'],opened:['wal-opened','fa-external-link-alt','Opened (Manual)'],failed:['wal-failed','fa-times-circle','Failed'],no_number:['wal-nonum','fa-exclamation-triangle','No Number']};
+  const badge={imported:['wal-sent','fa-file-import','Sent (Imported)'],sent:['wal-sent','fa-check-double','Sent (Auto)'],opened:['wal-opened','fa-external-link-alt','Opened (Manual)'],failed:['wal-failed','fa-times-circle','Failed'],no_number:['wal-nonum','fa-exclamation-triangle','No Number']};
   tb.innerHTML=rows.map((l,i)=>{
     const b=badge[l.status]||['wal-nonum','fa-question',l.status||'-'];
-    const dt=new Date(l.ts).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:true});
+    const dt=fmtDateDisp(new Date(l.ts).toLocaleDateString('en-CA'))+'<br><span style="color:#f97316;font-size:.62rem;font-weight:700">'+fmtTimeDisp(l.ts)+'</span>';
     const cl=[l.clientCode,l.clientName].filter(Boolean).join(' - ')||'N/A';
-    return '<tr><td>'+(i+1)+'</td><td style="white-space:nowrap">'+escapeHtml(dt)+'</td><td><b>'+escapeHtml(l.tki)+'</b></td><td>'+escapeHtml(cl)+'</td><td>'+escapeHtml(l.tech)+'</td><td>'+escapeHtml(l.techNumber||'-')+'</td><td>'+escapeHtml(l.byName||l.by||'-')+'</td><td>'+(l.method==='auto'?'Auto (Gateway)':'Manual (WhatsApp)')+'</td><td><span class="wal-badge '+b[0]+'" title="'+escapeHtml(l.note||'')+'"><i class="fas '+b[1]+'"></i>'+b[2]+'</span></td><td style="white-space:nowrap"><button onclick="viewWaMsg(\''+l.firebaseKey+'\')" title="View message" style="border:none;background:#e0f2fe;color:#0369a1;padding:5px 9px;border-radius:7px;cursor:pointer"><i class="fas fa-eye"></i></button> <button class="admin-edit-only" onclick="deleteWaLog(\''+l.firebaseKey+'\')" title="Delete" style="border:none;background:#fee2e2;color:#b91c1c;padding:5px 9px;border-radius:7px;cursor:pointer;display:inline-flex"><i class="fas fa-trash"></i></button></td></tr>';
+    return '<tr><td>'+(i+1)+'</td><td class="wal-dt" style="white-space:nowrap">'+dt+'</td><td><b>'+escapeHtml(l.tki)+'</b></td><td class="wal-client">'+escapeHtml(cl)+'</td><td>'+escapeHtml(l.tech)+'</td><td>'+escapeHtml(l.byName||l.by||'-')+'</td><td style="white-space:nowrap"><button onclick="viewWaMsg(\''+l.firebaseKey+'\')" title="View message" style="border:none;background:#e0f2fe;color:#0369a1;padding:5px 9px;border-radius:7px;cursor:pointer"><i class="fas fa-eye"></i></button> <button class="admin-edit-only" onclick="deleteWaLog(\''+l.firebaseKey+'\')" title="Delete" style="border:none;background:#fee2e2;color:#b91c1c;padding:5px 9px;border-radius:7px;cursor:pointer;display:inline-flex"><i class="fas fa-trash"></i></button></td></tr>';
   }).join('');
+  fitWaClientCol(tb);
+}
+// Client ID & Name column: set to 2/3 of its natural (single-line) width; anything longer wraps
+function fitWaClientCol(tb,retry){
+  const cells=tb.querySelectorAll('td.wal-client'); if(!cells.length) return;
+  const th=tb.closest('table').querySelector('th.wal-client-th');
+  cells.forEach(c=>{c.style.setProperty('white-space','nowrap','important');c.style.width='';c.style.maxWidth='';c.style.minWidth='';});
+  let mx=0; cells.forEach(c=>{ mx=Math.max(mx,c.scrollWidth); });
+  if(!mx){ cells.forEach(c=>{c.style.removeProperty('white-space');}); if(!retry) setTimeout(()=>fitWaClientCol(tb,true),300); return; }
+  const cs=getComputedStyle(cells[0]);
+  const pad=(parseFloat(cs.paddingLeft)||0)+(parseFloat(cs.paddingRight)||0);
+  const w=Math.round(mx*2/3-pad)+'px';
+  cells.forEach(c=>{c.style.removeProperty('white-space');c.style.width=w;c.style.minWidth=w;c.style.maxWidth=w;});
+  if(th){ th.style.width=w; }
+}
+// Download EVERY WhatsApp log (not just the filtered rows) as a CSV that opens in Excel
+function exportWaLogs(){
+  if(!isFullAdmin()){ toast('❌ Permission denied! Only Admin can download logs.'); return; }
+  const all=(window.waLogs||[]).slice().sort((a,b)=>(a.ts||0)-(b.ts||0));   // oldest -> newest in the file
+  if(!all.length){ toast('⚠ No WhatsApp logs to download!'); return; }
+  const stLabel={imported:'Sent (Imported)',sent:'Sent (Auto)',opened:'Opened (Manual)',failed:'Failed',no_number:'Number Missing'};
+  const pad2=n=>String(n).padStart(2,'0');
+  const rows=[['#','Date','Time','Ticket ID','Client ID','Client Name','Technician','WhatsApp No.','Assigned Engineer','Assigned By','Method','Status','Note','Message']];
+  all.forEach((l,i)=>{
+    const d=new Date(l.ts||0);
+    rows.push([i+1, pad2(d.getDate())+'-'+pad2(d.getMonth()+1)+'-'+d.getFullYear(), d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true}),
+      l.tki||'', l.clientCode||'', l.clientName||'', l.tech||'', l.techNumber?'\t'+l.techNumber:'', l.eng||'', l.byName||l.by||'',
+      l.method==='auto'?'Auto (Gateway)':'Manual (WhatsApp)', stLabel[l.status]||l.status||'', l.note||'', l.message||'']);
+  });
+  const csv='\uFEFF'+rows.map(r=>r.map(c=>{
+    const cell=String(c).replace(/"/g,'""');
+    return /[",\n\r]/.test(cell)?`"${cell}"`:cell;
+  }).join(',')).join('\r\n');
+  const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+  const a=document.createElement('a');
+  a.href=url; a.download='Link3_WhatsApp_Logs_'+new Date().toLocaleDateString('en-CA')+'.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  toast('✅ '+all.length+' WhatsApp log'+(all.length===1?'':'s')+' downloaded');
+}
+// One-time backfill: every ticket already on the Running Task page (running + completed) was messaged
+// to its technician before logging existed, so rebuild a log entry for each one that is not logged yet.
+async function importWaLogsFromTickets(){
+  if(!isFullAdmin()){ toast('❌ Permission denied! Only Admin can import.'); return; }
+  const tickets=window.fiberTeamTickets||[];
+  const have=new Set((window.waLogs||[]).map(l=>(l.tki||'')+'|'+(l.tech||'')));
+  const users=(typeof getUsers==='function' && getUsers()) || {};
+  const entries=[];
+  tickets.forEach(t=>{
+    if(!t || !t.tki || !t.assignTech) return;
+    const k=t.tki+'|'+t.assignTech;
+    if(have.has(k)) return;
+    have.add(k);
+    const ts=Math.floor(Number(t.id)) || Date.now();   // ticket id = the moment it was assigned
+    const by=t.submittedBy||'';
+    entries.push({
+      ts, tki:t.tki, clientCode:t.clientCode||'', clientName:t.clientName||'',
+      tech:t.assignTech, techNumber:(TECH_WA_NUMBERS[t.assignTech]||''),
+      eng:t.assignEng||'', by, byName:(users[by]&&users[by].name)||t.assignEng||by,
+      method:'manual', status:'imported',
+      note:'Imported from Running Task (message sent before logging was enabled)',
+      message:buildTechWaMessage(t, ts)
+    });
+  });
+  if(!entries.length){ toast('✅ Nothing new — all tickets are already in the log'); return; }
+  if(!confirm(entries.length+' past ticket(s) from Running Task will be added to the WhatsApp Log as sent messages.\n\nContinue?')) return;
+  toast('⏳ Importing '+entries.length+' log(s)...');
+  const ok=await window._fbImportWaLogs(entries);
+  toast(ok?'✅ '+entries.length+' past WhatsApp log(s) imported':'❌ Import failed! Check connection / Firebase rules');
 }
 function viewWaMsg(key){
   const l=(window.waLogs||[]).find(x=>x.firebaseKey===key); if(!l) return;
@@ -5239,20 +5341,52 @@ function formatDoneAt(ts){
   return `<span class="rt-fwd-date">${escapeHtml(datePart)}</span><span class="rt-fwd-time">${escapeHtml(timePart)}</span>`;
 }
 
+function setRtDoneRange(which,val){
+  const today = new Date().toLocaleDateString('en-CA');
+  if(which==='from'){ window.rtDoneFrom = val||''; if(!window.rtDoneTo || (val && window.rtDoneTo < val)) window.rtDoneTo = val||''; }
+  else { window.rtDoneTo = val||''; if(!window.rtDoneFrom || (val && window.rtDoneFrom > val)) window.rtDoneFrom = val||''; }
+  renderFiberTeamTickets();
+}
 function renderFiberTeamTickets(){
   const all = window.fiberTeamTickets || [];
 
-  // Old "done" tasks that have passed midnight are now silently deleted
-  all.forEach(t=>{
-    if(t.status==='done' && !isSameLocalDay(t.doneAt)){
-      window._fbDeleteFiber(t.firebaseKey);
-    }
-  });
+  // Done tasks are now KEPT (history) so any past date can be viewed from the Completed table's date picker
 
   // Active (pending/running) tasks in the table above, and tasks done today (until midnight)
   // are shown in a separate "Completed Today" table below
   const activeList = all.filter(t => t.status !== 'done');
-  const doneList = all.filter(t => t.status === 'done' && isSameLocalDay(t.doneAt));
+  const todayISO = new Date().toLocaleDateString('en-CA');
+  let fromISO = window.rtDoneFrom || todayISO, toISO = window.rtDoneTo || todayISO;
+  if(fromISO > toISO){ const x = fromISO; fromISO = toISO; toISO = x; }
+  const isTodayOnly = (fromISO===todayISO && toISO===todayISO);
+  let doneList = all.filter(t => { if(t.status!=='done' || !t.doneAt) return false; const d = new Date(t.doneAt).toLocaleDateString('en-CA'); return d>=fromISO && d<=toISO; });
+  // Past dates: tasks completed before history was kept live only in the Daily tickets (All Task) records —
+  // merge them in, and recover client / contact / area / assigned time from the WhatsApp assign log (matched by Ticket ID)
+  if(fromISO < todayISO){
+    const have = new Set(doneList.map(x=>String(x.tki||'').trim().toUpperCase()));
+    const waByTki = {};
+    (window.waLogs||[]).forEach(l=>{ const k=String(l.tki||'').trim().toUpperCase(); if(k && !waByTki[k]) waByTki[k]=l; });   // waLogs are newest-first
+    const pick = (msg,label)=>{ const m=String(msg||'').match(new RegExp('\\*'+label+':\\*[ \\t]*(.*)')); const v=m?m[1].trim():''; return (v==='undefined'||v==='N/A')?'':v; };
+    (typeof tickets!=='undefined' ? tickets : []).forEach(h=>{
+      if(!h || !h.date || h.date<fromISO || h.date>toISO || h.date>=todayISO || !h.tech || h.tt!=='Back office support') return;
+      const key = String(h.ticket||'').trim().toUpperCase();
+      if(!key || have.has(key)) return;
+      have.add(key);
+      const wl = waByTki[key] || {};
+      doneList.push({ _hist:true, tki:h.ticket, assignEng:h.eng||wl.eng||'', assignTech:h.tech,
+        clientCode:wl.clientCode||'', clientName:wl.clientName||'',
+        contact:pick(wl.message,'Client Cell No'), area:pick(wl.message,'Area'), address:pick(wl.message,'Client Address'),
+        assignedAt:Number(wl.ts)||0,
+        doneAt:(Number(h.id)>1e12?Math.floor(Number(h.id)):0), id:0 });
+    });
+  }
+  doneList.forEach(t=>{ t._as = t._hist ? (t.assignedAt||0) : Number(t.id); });
+  doneList.sort((a,b)=>(b.doneAt||0)-(a.doneAt||0));
+  const doneTitleEl = document.getElementById('rt-done-title');
+  if(doneTitleEl) doneTitleEl.innerHTML = '<i class="fas fa-check-circle"></i>' + (isTodayOnly ? 'Completed Today' : (fromISO===toISO ? 'Completed on ' + fmtDateDisp(fromISO) : 'Completed: ' + fmtDateDisp(fromISO) + ' → ' + fmtDateDisp(toISO)));
+  const dfEl = document.getElementById('rt-done-from'), dtEl = document.getElementById('rt-done-to');
+  if(dfEl && dfEl.value !== fromISO) dfEl.value = fromISO;
+  if(dtEl && dtEl.value !== toISO) dtEl.value = toISO;
   const activeCount = activeList.length;
 
   // Sidebar badge count (active tasks only, excluding done)
@@ -5282,7 +5416,7 @@ function renderFiberTeamTickets(){
           <td>${t.contact||'—'}</td>
           <td class="rt-area-cell" data-address="${escapeHtml(t.address)}" data-client="${escapeHtml(formatClientCodeNamePlain(t.clientCode, t.clientName))}" data-contact="${escapeHtml(t.contact)}" style="cursor:pointer;color:var(--blue);font-weight:700" title="Click to see address">${t.area?escapeHtml(toTitleCase(t.area)):'—'}<i class="fas fa-map-marker-alt" style="font-size:.55rem;margin-left:4px;opacity:.55"></i></td>
           <td style="color:var(--blue);font-weight:700">${t.assignEng||'—'}</td>
-          <td>${t.assignTech||'—'}</td>
+          <td><span class="rt-tech-wrap"><span>${t.assignTech||'—'}</span>${Number(t.id)>1e12?`<span class="rt-assign-at-sm">${formatDoneAt(Math.floor(Number(t.id)))}</span>`:''}</span></td>
           <td style="white-space:nowrap">
             <div class="rt-action-group" style="vertical-align:middle">
               
@@ -5310,7 +5444,7 @@ function renderFiberTeamTickets(){
   const tbDone = document.getElementById('rt-done-tbody');
   if(tbDone){
     if(!doneList.length){
-      tbDone.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted);font-weight:700">No task completed today yet.</td></tr>';
+      tbDone.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted);font-weight:700">'+(isTodayOnly?'No task completed today yet.':'No task was completed in this period.')+'</td></tr>';
     } else {
       tbDone.innerHTML = doneList.map((t,i)=>`
         <tr class="rt-row-done">
@@ -5320,13 +5454,13 @@ function renderFiberTeamTickets(){
           <td>${t.contact||'—'}</td>
           <td class="rt-area-cell" data-address="${escapeHtml(t.address)}" data-client="${escapeHtml(formatClientCodeNamePlain(t.clientCode, t.clientName))}" data-contact="${escapeHtml(t.contact)}" style="cursor:pointer;font-weight:700" title="Click to see address">${t.area?escapeHtml(toTitleCase(t.area)):'—'}<i class="fas fa-map-marker-alt" style="font-size:.55rem;margin-left:4px;opacity:.55"></i></td>
           <td style="font-weight:700">${t.assignEng||'—'}</td>
-          <td>${t.assignTech||'—'}</td>
+          <td><span class="rt-tech-wrap"><span>${t.assignTech||'—'}</span>${t._as>1e12?`<span class="rt-assign-at-sm">${formatDoneAt(Math.floor(t._as))}</span>`:''}</span></td>
           <td style="white-space:nowrap">
             <span class="rt-done-at" style="display:inline-flex;flex-direction:column;line-height:1.25">
               <span style="font-size:.6rem;opacity:.85;text-transform:uppercase;letter-spacing:.3px">Done at</span>
               ${formatDoneAt(t.doneAt)}
             </span>
-            ${canDeleteCompletedToday() ? `<button class="btn-row-del" onclick="deleteFiberEntry('${t.firebaseKey}')" title="Delete this entry" style="margin-left:6px;vertical-align:middle"><i class="fas fa-trash"></i></button>` : ''}
+            ${(canDeleteCompletedToday() && !t._hist) ? `<button class="btn-row-del" onclick="deleteFiberEntry('${t.firebaseKey}')" title="Delete this entry" style="margin-left:6px;vertical-align:middle"><i class="fas fa-trash"></i></button>` : ''}
           </td>
         </tr>`).join('');
     }
@@ -6182,6 +6316,20 @@ function saveTaskDetail(fmt){
 .fb-status.connected{background:rgba(20,184,166,.14) !important;color:#14b8a6 !important;border:1px solid rgba(20,184,166,.35) !important}
 .fb-status.connected span,.fb-status.connected i{color:#14b8a6 !important}
 .fb-status.disconnected i{color:#ef4444}
+</style>
+<style>
+/* Assigned-time badge: larger, clearer font */
+#rt-tbody td .rt-tech-wrap .rt-assign-at-sm,#rt-done-tbody td .rt-tech-wrap .rt-assign-at-sm{padding:1px 8px !important;border-width:1.5px !important}
+#rt-tbody td .rt-tech-wrap .rt-assign-at-sm span.rt-fwd-date,#rt-tbody td .rt-tech-wrap .rt-assign-at-sm span.rt-fwd-time,#rt-done-tbody td .rt-tech-wrap .rt-assign-at-sm span.rt-fwd-date,#rt-done-tbody td .rt-tech-wrap .rt-assign-at-sm span.rt-fwd-time{font-size:.8rem !important;font-weight:800 !important;line-height:1.15 !important;opacity:1 !important;letter-spacing:.1px}
+#rt-tbody td .rt-tech-wrap .rt-assign-at-sm span{color:#9a3412 !important;-webkit-text-fill-color:#9a3412 !important}
+#rt-done-tbody td .rt-tech-wrap .rt-assign-at-sm span{color:#166534 !important}
+/* Action column: extra compact (both tables) */
+#rt-table th:nth-child(8),#rt-done-table th:nth-child(8),#rt-tbody td:nth-child(8),#rt-done-tbody td:nth-child(8){padding-left:3px !important;padding-right:3px !important}
+#rt-tbody .rt-action-group{padding:1px !important}
+#rt-tbody .rt-status-btn{padding:4px 9px !important}
+#rt-tbody td:nth-child(8) .btn-row-edit,#rt-tbody td:nth-child(8) .btn-row-del,#rt-done-tbody td:nth-child(8) .btn-row-del{margin-left:1px !important;padding:3px 4px !important}
+#rt-done-tbody tr.rt-row-done .rt-done-at{padding:0 5px !important}
+#rt-done-tbody tr.rt-row-done .rt-done-at span{font-size:.62rem !important}
 </style></head><body><h3>${c.name} (${vis.length})</h3><p>${c.period}</p>${vis.length?`<table border="1"><thead><tr>${c.head}</tr></thead><tbody>${vis.map(r=>r.outerHTML).join('')}</tbody></table>`:'<p>No tasks found</p>'}</body></html>`;
   const url=URL.createObjectURL(new Blob(['\ufeff'+html],{type:'application/vnd.ms-excel;charset=utf-8'}));
   const a=document.createElement('a');
