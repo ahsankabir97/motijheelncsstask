@@ -242,6 +242,23 @@ onValue(fiberTeamTicketsRef, (snapshot) => {
     console.error("Firebase error (fiberTeamTickets):", error);
   });
 
+// ===== WHATSAPP LOGS (Admin can see every message sent on ticket assignment) =====
+const waLogsRef = ref(db, 'waLogs');
+onValue(waLogsRef, (snapshot) => {
+    const data = snapshot.val();
+    window.waLogs = data ? Object.entries(data).map(([k,v]) => ({ ...v, firebaseKey: k })).sort((a,b) => (b.ts||0) - (a.ts||0)) : [];
+    if (typeof renderWaLogs === 'function') renderWaLogs();
+  }, (error) => { console.error('Firebase error (waLogs):', error); window.waLogsError = true; if (typeof renderWaLogs === 'function') renderWaLogs(); });
+window._fbPushWaLog = async function(entry) {
+  try { await push(waLogsRef, entry); return true; } catch(e) { console.error('waLog push failed', e); return false; }
+};
+window._fbDeleteWaLog = async function(key) {
+  try { await remove(ref(db, 'waLogs/' + key)); return true; } catch(e) { console.error(e); return false; }
+};
+window._fbClearWaLogs = async function() {
+  try { await remove(waLogsRef); return true; } catch(e) { console.error(e); return false; }
+};
+
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzLrnx5cLKn1jP1W4sEKdd1tWAaBePaLG4Z_7cke3-nZ5jcsGu61i6nWudG7mcPBXkb6Q/exec';
 
   window._fbPush = async function(ticketData, skipSheet = false) {
@@ -540,6 +557,12 @@ html.l3-restoring #login-screen{display:none !important;}
 .ic-users{background:linear-gradient(145deg,#ef4444,#dc2626);box-shadow:0 3px 10px rgba(239,68,68,.55);}
 .ic-roster{background:linear-gradient(145deg,#14b8a6,#0d9488);box-shadow:0 3px 10px rgba(20,184,166,.55);}
 .ic-leave{background:linear-gradient(145deg,#f59e0b,#d97706);box-shadow:0 3px 10px rgba(245,158,11,.55);}
+.ic-walog{background:linear-gradient(145deg,#25d366,#128c7e);box-shadow:0 3px 10px rgba(37,211,102,.55);}
+.wal-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:.66rem;font-weight:800;font-family:'Exo 2',sans-serif;white-space:nowrap}
+.wal-sent{background:#dcfce7;color:#166534;border:1px solid #86efac}
+.wal-failed{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5}
+.wal-opened{background:#dbeafe;color:#1e40af;border:1px solid #93c5fd}
+.wal-nonum{background:#fef3c7;color:#92400e;border:1px solid #fcd34d}
 #admin-menu-chevron,#reports-menu-chevron{background:none !important;box-shadow:none !important;width:auto !important;height:auto !important;color:rgba(255,255,255,.85) !important;}
 .nav-sec-badge{cursor:pointer;justify-content:space-between}
 @property --nav-h{syntax:'<length>';inherits:true;initial-value:36px}
@@ -2221,6 +2244,7 @@ button:focus,a:focus,[tabindex]:focus,.tr-click:focus{outline:none !important}
       <div class="dash-tabs">
         <button type="button" class="dash-tab-btn active" id="dashtab-daily-btn" onclick="switchDashTab('daily')"><i class="fas fa-ticket-alt"></i> Engineer Task</button>
         <button type="button" class="dash-tab-btn" id="dashtab-fiber-btn" onclick="switchDashTab('fiber')"><i class="fas fa-network-wired"></i> BackOffice support</button>
+        <button type="button" class="dash-tab-btn" id="dashtab-walog-btn" style="display:none" onclick="switchDashTab('walog')"><i class="fab fa-whatsapp"></i> WhatsApp Log</button>
       </div>
       <div class="dash-subtab" id="dashsub-daily">
       <div class="form-card">
@@ -2368,6 +2392,35 @@ button:focus,a:focus,[tabindex]:focus,.tr-click:focus{outline:none !important}
         </div>
         <div class="submit-row" style="justify-content:flex-end;gap:10px;align-items:center">
           <button class="btn-submit" onclick="submitFiberTeamTicket()"><i class="fas fa-paper-plane"></i> Submit Assigned Ticket</button>
+        </div>
+      </div>
+      </div>
+      <div class="dash-subtab" id="dashsub-walog" style="display:none">
+      <div class="form-card" style="padding:8px 12px;margin-bottom:6px">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <div class="page-ttl" style="margin:0;font-size:.85rem;white-space:nowrap;margin-right:4px"><i class="fab fa-whatsapp" style="color:#25d366"></i> WhatsApp Logs</div>
+          <input type="text" id="wal-search" placeholder="Search Ticket / Client / Technician..." oninput="renderWaLogs()" style="flex:1;min-width:160px;height:30px;font-size:.74rem;padding:4px 9px;border:1.5px solid var(--border);border-radius:8px;font-family:'Exo 2',sans-serif;outline:none;text-align:left">
+          <select id="wal-tech" onchange="renderWaLogs()" style="width:130px;height:30px;font-size:.74rem;padding:4px 9px;border:1.5px solid var(--border);border-radius:8px;font-family:'Exo 2',sans-serif;outline:none;text-align:left"><option value="">All Technicians</option></select>
+          <select id="wal-status" onchange="renderWaLogs()" style="width:110px;height:30px;font-size:.74rem;padding:4px 9px;border:1.5px solid var(--border);border-radius:8px;font-family:'Exo 2',sans-serif;outline:none;text-align:left">
+            <option value="">All Status</option><option value="sent">Sent (Auto)</option><option value="opened">Opened (Manual)</option><option value="failed">Failed</option><option value="no_number">Number Missing</option>
+          </select>
+          <input type="date" id="wal-date" onchange="renderWaLogs()" style="width:125px;height:30px;font-size:.74rem;padding:4px 9px;border:1.5px solid var(--border);border-radius:8px;font-family:'Exo 2',sans-serif;outline:none;text-align:left">
+          <button class="admin-edit-only" onclick="clearAllWaLogs()" title="Clear All Logs" style="background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;border:none;height:30px;padding:0 12px;border-radius:8px;font-size:.7rem;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:'Exo 2',sans-serif;white-space:nowrap"><i class="fas fa-trash"></i> Clear All</button>
+        </div>
+      </div>
+      <div class="tbl-card" style="flex:1;display:flex;flex-direction:column;min-height:0">
+        <div class="tbl-top"><span class="tbl-title"><i class="fas fa-list-ul"></i>Message History</span><span class="tbl-badge" id="wal-cnt">0 logs</span></div>
+        <div class="tbl-wrap" style="flex:1;overflow:auto"><table class="um-table">
+          <thead><tr><th>#</th><th>Date &amp; Time</th><th>Ticket ID</th><th>Client</th><th>Technician</th><th>WhatsApp No.</th><th>Assigned By</th><th>Method</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="wal-tbody"></tbody>
+        </table></div>
+      </div>
+      <div id="wal-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:5000;align-items:center;justify-content:center;backdrop-filter:blur(4px)" onclick="if(event.target===this)closeWaMsg()">
+        <div style="background:#fff;border-radius:18px;padding:24px 26px;width:100%;max-width:440px;box-shadow:0 24px 60px rgba(0,0,0,.3)">
+          <div style="font-family:'Exo 2',sans-serif;font-size:1rem;font-weight:900;color:var(--navy);margin-bottom:12px;display:flex;align-items:center;gap:8px"><i class="fab fa-whatsapp" style="color:#25d366"></i> Message Sent</div>
+          <div id="wal-modal-meta" style="font-size:.72rem;color:var(--muted);font-family:'Exo 2',sans-serif;margin-bottom:10px"></div>
+          <pre id="wal-modal-body" style="background:#e7fbe9;border:1.5px solid #b7e8bd;border-radius:12px;padding:14px;font-size:.8rem;white-space:pre-wrap;word-break:break-word;font-family:'Exo 2',sans-serif;margin:0;max-height:55vh;overflow:auto"></pre>
+          <button onclick="closeWaMsg()" style="margin-top:14px;width:100%;padding:10px;border:1.5px solid var(--border);border-radius:9px;background:#f0f8ff;color:var(--blue);font-weight:800;font-size:.76rem;cursor:pointer;font-family:'Exo 2',sans-serif">Close</button>
         </div>
       </div>
       </div>
@@ -3332,6 +3385,7 @@ function setupUserUI() {
   document.getElementById('sb-avatar').textContent = u.name.substring(0,2).toUpperCase();
 
   const isAdmin = u.role === 'admin';
+  applyWaLogTabAccess();
   const canAdminPanel = canViewAdminPanel();
   applyReportsMenuAccess();
 
@@ -4039,6 +4093,7 @@ function showPage(pg,el){
     if(pg==='leave'){
       renderLeavePage();
     }
+
     if(pg==='maindash'){
       document.getElementById('db-month').value = String(new Date().getMonth() + 1).padStart(2, '0');
       renderDash();
@@ -4611,18 +4666,22 @@ document.addEventListener('click',function(e){
 // ===== TICKET ENTRY SUB-TABS (Daily / Fiber Team) =====
 function switchDashTab(tab){
   if(tab==='fiber' && !canSeeRunningTask()) tab='daily';   // BackOffice support tab: only allowed users
-  const daily = document.getElementById('dashsub-daily');
-  const fiber = document.getElementById('dashsub-fiber');
-  const dailyBtn = document.getElementById('dashtab-daily-btn');
-  const fiberBtn = document.getElementById('dashtab-fiber-btn');
-  if(tab==='fiber'){
-    daily.style.display='none'; fiber.style.display='';
-    fiberBtn.classList.add('active'); dailyBtn.classList.remove('active');
-    autoSetFiberEngineer();
-  } else {
-    fiber.style.display='none'; daily.style.display='';
-    dailyBtn.classList.add('active'); fiberBtn.classList.remove('active');
-  }
+  if(tab==='walog' && !isFullAdmin()) tab='daily';          // WhatsApp Log tab: Full Admin only
+  const panels={daily:'dashsub-daily',fiber:'dashsub-fiber',walog:'dashsub-walog'};
+  const btns={daily:'dashtab-daily-btn',fiber:'dashtab-fiber-btn',walog:'dashtab-walog-btn'};
+  Object.keys(panels).forEach(k=>{
+    const pe=document.getElementById(panels[k]), be=document.getElementById(btns[k]);
+    if(pe) pe.style.display = (k===tab) ? '' : 'none';
+    if(be) be.classList.toggle('active', k===tab);
+  });
+  if(tab==='fiber') autoSetFiberEngineer();
+  if(tab==='walog') renderWaLogs();
+}
+// Show the "WhatsApp Log" tab only to Full Admin (admin / ahsan)
+function applyWaLogTabAccess(){
+  const b=document.getElementById('dashtab-walog-btn');
+  if(b) b.style.display = isFullAdmin() ? '' : 'none';
+  if(!isFullAdmin()){ const p=document.getElementById('dashsub-walog'); if(p && p.style.display!=='none') switchDashTab('daily'); }
 }
 
 // Automatically fills and fixes (disables) the logged-in user's full name in the "Assigned Engineer" field,
@@ -4874,6 +4933,22 @@ function openWaDirect(num, text){
   a.href='whatsapp://send?phone='+num+'&text='+encodeURIComponent(text);
   document.body.appendChild(a); a.click(); a.remove();
 }
+// Saves a log of every WhatsApp message triggered on ticket assignment (visible to Admin only)
+function logWaAssign(d, method, status, num, note){
+  try{
+    if(typeof window._fbPushWaLog!=='function') return;
+    window._fbPushWaLog({
+      ts: Date.now(),
+      tki: d.tki||'', clientCode: d.clientCode||'', clientName: d.clientName||'',
+      tech: d.assignTech||'', techNumber: num||'',
+      eng: d.assignEng||'',
+      by: currentUser ? currentUser.username : 'unknown',
+      byName: currentUser ? currentUser.name : 'unknown',
+      method: method, status: status, note: note||'',
+      message: buildTechWaMessage(d)
+    });
+  }catch(e){ console.warn('WA log failed', e); }
+}
 async function autoSendTechWa(d){
   const gw=getWaGateway(d.assignEng);
   const to=TECH_WA_NUMBERS[d.assignTech];
@@ -4885,8 +4960,61 @@ async function autoSendTechWa(d){
       body:new URLSearchParams({token:gw.token,to:'+'+to,body:buildTechWaMessage(d)})
     });
     const j=await r.json();
-    return !!(j && (j.sent==='true'||j.sent===true||j.id));
-  }catch(e){ return false; }
+    const okSend=!!(j && (j.sent==='true'||j.sent===true||j.id));
+    logWaAssign(d,'auto',okSend?'sent':'failed',to,okSend?'':JSON.stringify(j||{}).slice(0,200));
+    return okSend;
+  }catch(e){ logWaAssign(d,'auto','failed',to,String(e&&e.message||e).slice(0,200)); return false; }
+}
+
+// ===== WhatsApp Logs page (Admin only) =====
+function renderWaLogs(){
+  const tb=document.getElementById('wal-tbody'); if(!tb) return;
+  if(!isFullAdmin()) return;
+  const all=window.waLogs||[];
+  const techSel=document.getElementById('wal-tech');
+  if(techSel){
+    const cur=techSel.value, names=[...new Set(all.map(l=>l.tech).filter(Boolean))].sort();
+    techSel.innerHTML='<option value="">All Technicians</option>'+names.map(n=>'<option value="'+escapeHtml(n)+'">'+escapeHtml(n)+'</option>').join('');
+    techSel.value=names.includes(cur)?cur:'';
+  }
+  const q=(document.getElementById('wal-search').value||'').toLowerCase().trim();
+  const tf=techSel?techSel.value:'', sf=document.getElementById('wal-status').value, df=document.getElementById('wal-date').value;
+  const rows=all.filter(l=>{
+    if(tf && l.tech!==tf) return false;
+    if(sf && l.status!==sf) return false;
+    if(df && new Date(l.ts).toLocaleDateString('en-CA')!==df) return false;
+    if(q && !((l.tki||'')+' '+(l.clientCode||'')+' '+(l.clientName||'')+' '+(l.tech||'')+' '+(l.byName||'')).toLowerCase().includes(q)) return false;
+    return true;
+  });
+  document.getElementById('wal-cnt').textContent=rows.length+' log'+(rows.length===1?'':'s');
+  if(!rows.length){
+    tb.innerHTML='<tr><td colspan="10" style="text-align:center;padding:26px;color:var(--muted);font-weight:700">'+(window.waLogsError?'⚠ Could not read waLogs from Firebase — check Realtime Database rules':'No WhatsApp logs found')+'</td></tr>';
+    return;
+  }
+  const badge={sent:['wal-sent','fa-check-double','Sent (Auto)'],opened:['wal-opened','fa-external-link-alt','Opened (Manual)'],failed:['wal-failed','fa-times-circle','Failed'],no_number:['wal-nonum','fa-exclamation-triangle','No Number']};
+  tb.innerHTML=rows.map((l,i)=>{
+    const b=badge[l.status]||['wal-nonum','fa-question',l.status||'-'];
+    const dt=new Date(l.ts).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:true});
+    const cl=[l.clientCode,l.clientName].filter(Boolean).join(' - ')||'N/A';
+    return '<tr><td>'+(i+1)+'</td><td style="white-space:nowrap">'+escapeHtml(dt)+'</td><td><b>'+escapeHtml(l.tki)+'</b></td><td>'+escapeHtml(cl)+'</td><td>'+escapeHtml(l.tech)+'</td><td>'+escapeHtml(l.techNumber||'-')+'</td><td>'+escapeHtml(l.byName||l.by||'-')+'</td><td>'+(l.method==='auto'?'Auto (Gateway)':'Manual (WhatsApp)')+'</td><td><span class="wal-badge '+b[0]+'" title="'+escapeHtml(l.note||'')+'"><i class="fas '+b[1]+'"></i>'+b[2]+'</span></td><td style="white-space:nowrap"><button onclick="viewWaMsg(\''+l.firebaseKey+'\')" title="View message" style="border:none;background:#e0f2fe;color:#0369a1;padding:5px 9px;border-radius:7px;cursor:pointer"><i class="fas fa-eye"></i></button> <button class="admin-edit-only" onclick="deleteWaLog(\''+l.firebaseKey+'\')" title="Delete" style="border:none;background:#fee2e2;color:#b91c1c;padding:5px 9px;border-radius:7px;cursor:pointer;display:inline-flex"><i class="fas fa-trash"></i></button></td></tr>';
+  }).join('');
+}
+function viewWaMsg(key){
+  const l=(window.waLogs||[]).find(x=>x.firebaseKey===key); if(!l) return;
+  document.getElementById('wal-modal-meta').textContent='To: '+l.tech+(l.techNumber?' ('+l.techNumber+')':'')+'  •  By: '+(l.byName||l.by)+'  •  '+new Date(l.ts).toLocaleString('en-GB')+(l.note?'  •  '+l.note:'');
+  document.getElementById('wal-modal-body').textContent=l.message||'';
+  document.getElementById('wal-modal').style.display='flex';
+}
+function closeWaMsg(){ document.getElementById('wal-modal').style.display='none'; }
+async function deleteWaLog(key){
+  if(!isFullAdmin()) return;
+  if(!confirm('Delete this log entry?')) return;
+  const ok=await window._fbDeleteWaLog(key); toast(ok?'✅ Log deleted':'❌ Failed to delete log');
+}
+async function clearAllWaLogs(){
+  if(!isFullAdmin()) return;
+  if(!confirm('Delete ALL WhatsApp logs? This cannot be undone.')) return;
+  const ok=await window._fbClearWaLogs(); toast(ok?'✅ All WhatsApp logs cleared':'❌ Failed to clear logs');
 }
 
 async function submitFiberTeamTicket(){
@@ -4933,7 +5061,8 @@ async function submitFiberTeamTicket(){
 
   // Instant feedback: open WhatsApp, clear the form and free the button right away; saving continues in the background
   const useGw=!!getWaGateway(assignEng);
-  if(!useGw && waNum) openWaDirect(waNum, buildTechWaMessage(fiberData));
+  if(!useGw && waNum){ openWaDirect(waNum, buildTechWaMessage(fiberData)); logWaAssign(fiberData,'manual','opened',waNum,'WhatsApp opened with message pre-filled; engineer presses Send'); }
+  else if(!useGw && !waNum){ logWaAssign(fiberData,'manual','no_number','','Technician WhatsApp number not set'); }
   toast('⏳ Saving ticket...');
   ids.forEach(i=>document.getElementById(i).value='');
   autoSetFiberEngineer(); // Assigned Engineer stays fixed to the logged-in user's name
@@ -7215,6 +7344,7 @@ function isStickyUser(u) { return !!u && L3_STICKY_USERS.includes(u.username); }
     try {
       let lastPg = localStorage.getItem('l3_last_page');
       if (lastPg === 'mytask' && !canSeeMyTask()) lastPg = 'alltask';
+      if (lastPg === 'walogs') lastPg = 'dashboard';
       if (lastPg && lastPg !== 'dashboard') {
         const navEl = document.querySelector(`.nav-item[onclick^="showPage('${lastPg}',"]`);
         showPage(lastPg, navEl || null);
