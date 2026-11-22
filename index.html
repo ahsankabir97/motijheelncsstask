@@ -2429,9 +2429,6 @@ button:focus,a:focus,[tabindex]:focus,.tr-click:focus{outline:none !important}
           <div class="page-ttl" style="margin:0;font-size:.85rem;white-space:nowrap;margin-right:4px"><i class="fab fa-whatsapp" style="color:#25d366"></i> WhatsApp Logs</div>
           <input type="text" id="wal-search" placeholder="Search Ticket / Client / Technician..." oninput="renderWaLogs()" style="flex:1;min-width:160px;height:30px;font-size:.74rem;padding:4px 9px;border:1.5px solid var(--border);border-radius:8px;font-family:'Exo 2',sans-serif;outline:none;text-align:left">
           <select id="wal-tech" onchange="renderWaLogs()" style="width:130px;height:30px;font-size:.74rem;padding:4px 9px;border:1.5px solid var(--border);border-radius:8px;font-family:'Exo 2',sans-serif;outline:none;text-align:left"><option value="">All Technicians</option></select>
-          <select id="wal-status" onchange="renderWaLogs()" style="width:110px;height:30px;font-size:.74rem;padding:4px 9px;border:1.5px solid var(--border);border-radius:8px;font-family:'Exo 2',sans-serif;outline:none;text-align:left">
-            <option value="">All Status</option><option value="sent">Sent (Auto)</option><option value="imported">Sent (Imported)</option><option value="opened">Opened (Manual)</option><option value="failed">Failed</option><option value="no_number">Number Missing</option>
-          </select>
           <input type="date" id="wal-date" onchange="renderWaLogs()" style="width:125px;height:30px;font-size:.74rem;padding:4px 9px;border:1.5px solid var(--border);border-radius:8px;font-family:'Exo 2',sans-serif;outline:none;text-align:left">
           <button class="admin-edit-only" onclick="clearAllWaLogs()" title="Clear All Logs" style="background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;border:none;height:30px;padding:0 12px;border-radius:8px;font-size:.7rem;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:'Exo 2',sans-serif;white-space:nowrap"><i class="fas fa-trash"></i> Clear All</button>
         </div>
@@ -5011,7 +5008,7 @@ function renderWaLogs(){
     techSel.value=names.includes(cur)?cur:'';
   }
   const q=(document.getElementById('wal-search').value||'').toLowerCase().trim();
-  const tf=techSel?techSel.value:'', sf=document.getElementById('wal-status').value, df=document.getElementById('wal-date').value;
+  const tf=techSel?techSel.value:'', sf='', df=document.getElementById('wal-date').value;
   const rows=all.filter(l=>{
     if(tf && l.tech!==tf) return false;
     if(sf && l.status!==sf) return false;
