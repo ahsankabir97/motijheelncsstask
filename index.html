@@ -1598,9 +1598,20 @@ th,td,.tbl-title,.page-ttl{text-shadow:none !important}
 button:focus,a:focus,[tabindex]:focus,.tr-click:focus{outline:none !important}
 
 /* ===== Technician summary: slimmer title bar, taller column-header row ===== */
-#tr-view-tech .tbl-top{padding:6px 16px !important}
-#tr-view-tech thead th{padding:14px 6px !important;line-height:1.4 !important;font-size:.74rem !important;font-weight:800 !important;letter-spacing:.5px !important;text-shadow:none !important}
-#tr-view-tech thead th:first-child{font-size:.78rem !important}
+#tr-view-tech .tbl-top{padding:3px 14px !important;background:linear-gradient(90deg,#0f766e,#14958a,#2dd4bf) !important;min-height:0 !important}
+#tr-view-tech .tbl-top .tbl-title{font-size:.8rem !important;line-height:1.2 !important}
+#tr-view-tech thead tr{background:#0f766e !important}
+#tr-view-tech thead th{background:#0f766e !important;padding:4px 6px !important;line-height:1.15 !important;font-size:.72rem !important;font-weight:800 !important;letter-spacing:.4px !important;text-shadow:none !important;border:1px solid #5fc4b8 !important;height:auto !important}
+#tr-view-tech thead th:first-child{font-size:.74rem !important}
+/* ===== Crisper, brighter header text (Engineer + Technician report) ===== */
+#tr-view-eng thead th,#tr-view-tech thead th{color:#fff !important;font-weight:800 !important;font-size:.8rem !important;letter-spacing:.2px !important;text-shadow:0 1px 1px rgba(0,0,0,.38) !important;-webkit-font-smoothing:antialiased !important;-moz-osx-font-smoothing:grayscale !important;text-rendering:optimizeLegibility !important;opacity:1 !important;filter:none !important}
+#tr-view-eng thead th.h-sub{font-size:.78rem !important;font-weight:900 !important;letter-spacing:0 !important;color:#fff !important;text-shadow:0 1px 0 rgba(0,0,0,.55),0 0 2px rgba(0,0,0,.25) !important}
+#tr-view-eng thead th.h-ts.h-sub{background:#27509f !important}
+#tr-view-eng thead th.h-ins.h-sub{background:#0a7562 !important}
+#tr-view-eng thead th.h-cr.h-sub{background:#6a3cb0 !important}
+#tr-view-eng thead th.h-sv.h-sub{background:#bf2860 !important}
+#tr-view-eng .tbl-top .tbl-title,#tr-view-tech .tbl-top .tbl-title{color:#fff !important;font-weight:900 !important;text-shadow:0 1px 1px rgba(0,0,0,.35) !important;-webkit-font-smoothing:antialiased !important}
+#tr-view-eng #tr-period-badge,#tr-tech-period-badge{color:#ffe27a !important;font-weight:900 !important;text-shadow:0 1px 1px rgba(0,0,0,.4) !important}
 
 /* ===== Form boxes: filled = deep navy, empty/unselected = light ash (dates excluded) ===== */
 .fg input:not([type=date]):not(.fp-alt-date):not(#ft-fwddate),.fg textarea{
@@ -1689,6 +1700,18 @@ button:focus,a:focus,[tabindex]:focus,.tr-click:focus{outline:none !important}
 #tr-view-eng thead th.h-ins.h-grp{background:#0f8a74 !important} #tr-view-eng thead th.h-ins.h-sub{background:#27a78f !important}
 #tr-view-eng thead th.h-cr.h-grp{background:#7e4fc4 !important}  #tr-view-eng thead th.h-cr.h-sub{background:#9b72d9 !important}
 #tr-view-eng thead th.h-sv.h-grp{background:#d6336c !important}  #tr-view-eng thead th.h-sv.h-sub{background:#e85c8e !important}
+/* ===== FINAL: uniform sub-header font, bright/deep sub colours, fit without horizontal scroll ===== */
+#tr-view-eng .tbl-wrap{overflow-x:hidden !important}
+#tr-view-eng table{width:100% !important;min-width:0 !important;table-layout:auto !important}
+#tr-view-eng thead tr.tr-subhead th,#tr-view-eng thead tr.tr-subhead th:first-child,#tr-view-eng thead th.h-sub,#tr-view-eng thead th.h-sub.h-start{font-size:.72rem !important;font-weight:800 !important;letter-spacing:0 !important;padding:3px 4px !important;width:auto !important;white-space:nowrap !important;color:#fff !important;text-shadow:0 1px 0 rgba(0,0,0,.5) !important;line-height:1.15 !important}
+#tr-view-eng thead tr:first-child th{font-size:.74rem !important;font-weight:800 !important;padding:4px 4px !important;white-space:nowrap !important}
+#tr-view-eng thead tr:first-child th:first-child{min-width:0 !important;width:auto !important}
+#tr-view-eng thead th.h-ts.h-sub{background:#27509f !important}
+#tr-view-eng thead th.h-ins.h-sub{background:#0a7562 !important}
+#tr-view-eng thead th.h-cr.h-sub{background:#6a3cb0 !important}
+#tr-view-eng thead th.h-sv.h-sub{background:#bf2860 !important}
+#tr-view-tech .tbl-wrap{overflow-x:hidden !important}
+#tr-view-tech table{width:100% !important;min-width:0 !important}
 /* column tints */
 #tr-summary-tbody td.g-ts{background-image:linear-gradient(rgba(59,130,246,.07),rgba(59,130,246,.07))}
 #tr-summary-tbody td.g-ins{background-image:linear-gradient(rgba(16,185,129,.09),rgba(16,185,129,.09))}
@@ -4074,7 +4097,7 @@ function setDateDefaults(){
   setDateInputValue('mt-date', today);
 // Add this at the very end of the script
 const _initMi = new Date().getMonth();
-document.getElementById('tr-month-sel').value = String(_initMi);
+document.getElementById('tr-month-sel').value = '';
 document.getElementById('db-month').value = String(new Date().getMonth() + 1).padStart(2, '0');
 }
 
@@ -5382,8 +5405,8 @@ function renderFiberTeamTickets(){
   const doneTitleEl = document.getElementById('rt-done-title');
   if(doneTitleEl) doneTitleEl.innerHTML = '<i class="fas fa-check-circle"></i>' + (isTodayOnly ? 'Completed Today' : (fromISO===toISO ? 'Completed on ' + fmtDateDisp(fromISO) : 'Completed: ' + fmtDateDisp(fromISO) + ' → ' + fmtDateDisp(toISO)));
   const dfEl = document.getElementById('rt-done-from'), dtEl = document.getElementById('rt-done-to');
-  if(dfEl && dfEl.value !== fromISO) dfEl.value = fromISO;
-  if(dtEl && dtEl.value !== toISO) dtEl.value = toISO;
+  if(dfEl && dfEl.value !== fromISO){ if(dfEl._flatpickr) dfEl._flatpickr.setDate(fromISO, false); else dfEl.value = fromISO; }
+  if(dtEl && dtEl.value !== toISO){ if(dtEl._flatpickr) dtEl._flatpickr.setDate(toISO, false); else dtEl.value = toISO; }
   const activeCount = activeList.length;
 
   // Sidebar badge count (active tasks only, excluding done)
@@ -6117,11 +6140,11 @@ function setThisMonth(){
   const y=n.getFullYear(), mi=n.getMonth();
   const last=new Date(y,mi+1,0).getDate();
   const m=String(mi+1).padStart(2,'0');
-  // FROM = today's date (dynamic), TO = last day of the month
+  // FROM = today's date, TO = today's date (both can be changed afterwards to view other ranges)
   const todayLocal=n.toLocaleDateString('en-CA');
   setDateInputValue('tr-df', todayLocal);
-  setDateInputValue('tr-dt', `${y}-${m}-${String(last).padStart(2,'0')}`);
-  document.getElementById('tr-month-sel').value=String(mi);
+  setDateInputValue('tr-dt', todayLocal);
+  document.getElementById('tr-month-sel').value='';
 }
 
 function applyMonthPreset(){
@@ -7964,9 +7987,9 @@ setInterval(function(){ window.location.reload(); }, 60 * 60 * 1000);
 // The actual value (yyyy-mm-dd) stays unchanged, so the rest of the JS logic works correctly
 document.addEventListener('DOMContentLoaded', function(){
   if (typeof flatpickr === 'undefined') return;
-  var ids = ['te-date','db-df','db-dt','f-date','mt-date','tr-df','tr-dt','at-date-from','at-date-to','dr-df','dr-dt'];
+  var ids = ['te-date','db-df','db-dt','f-date','mt-date','tr-df','tr-dt','at-date-from','at-date-to','dr-df','dr-dt','rt-done-from','rt-done-to'];
   // To show a dd/mm/yyyy placeholder in the From/To boxes of "All Completed Tasks"
-  var ddmmyyyyPlaceholderIds = ['db-df','db-dt','at-date-from','at-date-to','dr-df','dr-dt'];
+  var ddmmyyyyPlaceholderIds = ['db-df','db-dt','at-date-from','at-date-to','dr-df','dr-dt','rt-done-from','rt-done-to'];
   ids.forEach(function(id){
     var el = document.getElementById(id);
     if(!el) return;
@@ -7992,6 +8015,17 @@ document.addEventListener('DOMContentLoaded', function(){
       fp.altInput.style.color = 'var(--navy)';
       if (ddmmyyyyPlaceholderIds.indexOf(id) !== -1) {
         fp.altInput.placeholder = 'dd/mm/yyyy';
+      }
+      if (id === 'rt-done-from' || id === 'rt-done-to') {
+        fp.altInput.style.width = '96px';
+        fp.altInput.style.textAlign = 'center';
+      }
+      if (id === 'tr-df' || id === 'tr-dt') {
+        fp.altInput.style.width = '104px';
+        fp.altInput.style.minWidth = '0';
+        fp.altInput.style.flex = '0 0 auto';
+        fp.altInput.style.padding = '4px 8px';
+        fp.altInput.style.textAlign = 'center';
       }
     }
   });
