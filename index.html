@@ -8423,6 +8423,20 @@ input::placeholder{text-align:center}
 #rt-tbody td:nth-child(7),#rt-done-tbody td:nth-child(7){padding-left:4px !important;padding-right:4px !important}
 #rt-tbody .rt-tech-wrap,#rt-done-tbody .rt-tech-wrap{gap:6px !important}
 #rt-tbody td .rt-tech-wrap .rt-assign-at-sm,#rt-done-tbody td .rt-tech-wrap .rt-assign-at-sm,#rt-done-tbody tr.rt-row-done td .rt-done-at{min-width:0 !important;padding:2px 6px !important}
+
+/* ===== Auto-fit layout: every column except Client Info shrinks to its content (no wrapping);
+   Client Info takes all the remaining width and wraps long text ===== */
+#rt-table col,#rt-done-table col{width:auto !important}
+#rt-table,#rt-done-table{table-layout:auto !important;width:100% !important;min-width:0 !important}
+#rt-table th:not(:nth-child(3)),#rt-done-table th:not(:nth-child(3)),
+#rt-tbody td:not(:nth-child(3)),#rt-done-tbody td:not(:nth-child(3)){width:1% !important;white-space:nowrap !important;overflow-wrap:normal !important;word-break:normal !important}
+#rt-tbody td:not(:nth-child(3)) *,#rt-done-tbody td:not(:nth-child(3)) *{white-space:nowrap !important;overflow-wrap:normal !important;word-break:normal !important}
+#rt-tbody td:not(:nth-child(3)),#rt-done-tbody td:not(:nth-child(3)),
+#rt-table th:not(:nth-child(3)),#rt-done-table th:not(:nth-child(3)){padding-left:9px !important;padding-right:9px !important}
+#rt-tbody td:nth-child(1),#rt-done-tbody td:nth-child(1),#rt-table th:nth-child(1),#rt-done-table th:nth-child(1){padding-left:6px !important;padding-right:6px !important}
+#rt-table th:nth-child(3),#rt-done-table th:nth-child(3),#rt-tbody td:nth-child(3),#rt-done-tbody td:nth-child(3){width:auto !important;min-width:140px !important;max-width:none !important;white-space:normal !important}
+#rt-tbody td:nth-child(3) *,#rt-done-tbody td:nth-child(3) *{white-space:normal !important;overflow-wrap:anywhere !important;word-break:break-word !important}
+#rt-tbody td:nth-child(7),#rt-done-tbody td:nth-child(7){padding-left:9px !important;padding-right:9px !important}
 </style>
 <script>
 /* Frozen table header: auto-align to the very top of the scroll area (no gap, no rows showing above it) */
