@@ -777,6 +777,10 @@ html.l3-restoring #login-screen{display:none !important;}
 #f-eng option{font-weight:500;color:var(--navy);font-family:'Exo 2',sans-serif;background:#f0f8ff}
 /* CS / FI group toggle next to Engineer Name selects */
 .eng-row{display:flex;gap:6px;align-items:stretch}
+.tech-btn-row{display:flex;gap:6px;align-items:stretch;width:100%}
+.tech-btn{flex:1;min-width:0;height:34px;border:1.5px solid var(--border);border-radius:9px;background:rgba(235,245,255,.75);color:var(--navy,#14265e);font-family:'Exo 2',sans-serif;font-size:.74rem;font-weight:800;cursor:pointer;transition:all .25s;box-shadow:0 3px 10px rgba(26,58,143,.13),inset 0 1px 3px rgba(255,255,255,.8);padding:0 4px;white-space:nowrap}
+.tech-btn:hover{border-color:var(--accent);background:#e8f4fd}
+.tech-btn.active{background:linear-gradient(135deg,#4a78c9,#5b8def,#2196f3);color:#fff;border-color:transparent;box-shadow:0 4px 12px rgba(33,150,243,.35)}
 .eng-row select{flex:1;min-width:0}
 .eng-grp{display:none;flex-shrink:0;border:1.5px solid var(--border);border-radius:9px;overflow:hidden;background:rgba(235,245,255,.75)}
 .eng-grp button{border:none;background:transparent;padding:0 13px;font-family:'Exo 2',sans-serif;font-size:.72rem;font-weight:800;color:var(--blue);cursor:pointer;letter-spacing:.5px;transition:all .25s}
@@ -2431,13 +2435,12 @@ button:focus,a:focus,[tabindex]:focus,.tr-click:focus{outline:none !important}
               </div>
             </div>
             <div class="fg"><label><i class="fas fa-user-hard-hat"></i>Assigned Technician</label>
-              <select id="ft-assigntech">
-                <option value="">Select Technician</option>
-                <option>Sumon</option>
-                <option>Alamin</option>
-                <option>Nahid</option>
-                <option>Fahim</option>
-              </select>
+              <div class="tech-btn-row" id="ft-assigntech">
+                <button type="button" class="tech-btn" data-tech="Sumon" onclick="toggleTechBtn(this)">Sumon</button>
+                <button type="button" class="tech-btn" data-tech="Alamin" onclick="toggleTechBtn(this)">Alamin</button>
+                <button type="button" class="tech-btn" data-tech="Nahid" onclick="toggleTechBtn(this)">Nahid</button>
+                <button type="button" class="tech-btn" data-tech="Fahim" onclick="toggleTechBtn(this)">Fahim</button>
+              </div>
             </div>
           </div>
         </div>
@@ -2491,15 +2494,14 @@ button:focus,a:focus,[tabindex]:focus,.tr-click:focus{outline:none !important}
         </div>
         <div class="tbl-wrap"><table id="rt-table">
           <colgroup>
-            <col style="width:2.5%">
+            <col style="width:3%">
+            <col style="width:15%">
+            <col style="width:24%">
+            <col style="width:11%">
             <col style="width:9%">
-            <col style="width:40%">
-            <col style="width:8%">
-            
-            <col style="width:8%">
-            <col style="width:8%">
-            <col style="width:8%">
-            <col style="width:1%">
+            <col style="width:9%">
+            <col style="width:15%">
+            <col style="width:14%">
           </colgroup>
           <thead><tr>
   <th>#</th>
@@ -2527,15 +2529,14 @@ button:focus,a:focus,[tabindex]:focus,.tr-click:focus{outline:none !important}
         </div>
         <div class="tbl-wrap"><table id="rt-done-table">
           <colgroup>
-            <col style="width:2.5%">
+            <col style="width:3%">
+            <col style="width:15%">
+            <col style="width:24%">
+            <col style="width:11%">
             <col style="width:9%">
-            <col style="width:40%">
-            <col style="width:8%">
-            
-            <col style="width:8%">
-            <col style="width:8%">
-            <col style="width:8%">
-            <col style="width:1%">
+            <col style="width:9%">
+            <col style="width:15%">
+            <col style="width:14%">
           </colgroup>
           <thead><tr>
   <th>#</th>
@@ -5139,6 +5140,15 @@ async function clearAllWaLogs(){
   const ok=await window._fbClearWaLogs(); toast(ok?'✅ All WhatsApp logs cleared':'❌ Failed to clear logs');
 }
 
+// ===== Multi-technician selection (toggle buttons) =====
+function toggleTechBtn(btn){ btn.classList.toggle('active'); }
+function getSelectedTechs(){
+  return Array.from(document.querySelectorAll('#ft-assigntech .tech-btn.active')).map(b=>b.getAttribute('data-tech'));
+}
+function setSelectedTechs(list){
+  document.querySelectorAll('#ft-assigntech .tech-btn').forEach(b=>b.classList.toggle('active', (list||[]).indexOf(b.getAttribute('data-tech'))!==-1));
+}
+
 async function submitFiberTeamTicket(){
   const tki = document.getElementById('ft-tki').value.trim();
   const clientCodeName = document.getElementById('ft-clientcodename').value.trim();
@@ -5153,55 +5163,72 @@ async function submitFiberTeamTicket(){
   const area = normalizeAreaName(document.getElementById('ft-area').value);
   document.getElementById('ft-area').value = area;
   const assignEng = document.getElementById('ft-assigneng').value;
-  const assignTech = document.getElementById('ft-assigntech').value;
+  const selectedTechs = getSelectedTechs();
 
   // Contact Number, Client Category, Forward/Last Update Date — these aren't mandatory, if empty
   // they will be saved as "N/A". Address and Area are required (even if auto-filled, they can still be edited).
-  if(!tki||!clientCodeName||!address||!area||!assignEng||!assignTech){
+  if(!tki||!clientCodeName||!address||!area||!assignEng||!selectedTechs.length){
     toast('⚠ Please fill Ticket ID, Client, Address, Area, Engineer & Technician!');
     return;
   }
 
-  const waNum = getTechWaNumber(assignTech);
-  const waWin = null;
   const btn=document.querySelector('#dashsub-fiber .btn-submit');
 
-  const fiberData={
+  // One separate Running Task per selected technician (same Ticket ID, each under that technician's name)
+  const fiberList = selectedTechs.map(t=>({
     id:Date.now()+Math.random(),
     tki, clientCode, clientName, address,
     contact: contact || 'N/A',
     clientCat: clientCat || 'N/A',
     fwdDate: fwdDate || 'N/A',
-    area, assignEng, assignTech,
+    area, assignEng, assignTech:t,
     status:'running',
     submittedBy: currentUser ? currentUser.username : 'unknown'
-  };
+  }));
 
   // Snapshot of the form so it can be restored if saving fails
-  const ids=['ft-tki','ft-clientcodename','ft-address','ft-contact','ft-area','ft-pastebox','ft-clientcat','ft-fwddate','ft-assigntech'];
+  const ids=['ft-tki','ft-clientcodename','ft-address','ft-contact','ft-area','ft-pastebox','ft-clientcat','ft-fwddate'];
   const snap={}; ids.forEach(i=>snap[i]=document.getElementById(i).value);
+  const snapTechs=selectedTechs.slice();
 
-  // Instant feedback: open WhatsApp, clear the form and free the button right away; saving continues in the background
+  // Instant feedback: open WhatsApp (one chat per technician), clear the form and free the button right away; saving continues in the background
   const useGw=!!getWaGateway(assignEng);
-  if(!useGw && waNum){ openWaDirect(waNum, buildTechWaMessage(fiberData)); logWaAssign(fiberData,'manual','opened',waNum,'WhatsApp opened with message pre-filled; engineer presses Send'); }
-  else if(!useGw && !waNum){ logWaAssign(fiberData,'manual','no_number','','Technician WhatsApp number not set'); }
+  let manualIdx=0;
+  fiberList.forEach(fd=>{
+    const num=getTechWaNumber(fd.assignTech);
+    if(!useGw && num){
+      const delay=manualIdx++*1500; // stagger so the browser can open each WhatsApp chat in turn
+      if(delay===0) openWaDirect(num, buildTechWaMessage(fd));
+      else setTimeout(()=>openWaDirect(num, buildTechWaMessage(fd)), delay);
+      logWaAssign(fd,'manual','opened',num,'WhatsApp opened with message pre-filled; engineer presses Send');
+    } else if(!useGw && !num){ logWaAssign(fd,'manual','no_number','','Technician WhatsApp number not set'); }
+  });
   toast('⏳ Saving ticket...');
   ids.forEach(i=>document.getElementById(i).value='');
+  setSelectedTechs([]);
   autoSetFiberEngineer(); // Assigned Engineer stays fixed to the logged-in user's name
   btn.disabled=true;
   setTimeout(()=>{ btn.disabled=false; },600); // brief guard against double-click
 
-  const ok=await window._fbPushFiber(fiberData);
+  const results=await Promise.all(fiberList.map(fd=>window._fbPushFiber(fd)));
+  const okCount=results.filter(Boolean).length;
 
-  if(ok){
-    toast('✅ Running Task saved successfully!');
-    if(useGw){ autoSendTechWa(fiberData).then(sent=>toast(sent?'✅ WhatsApp sent to '+assignTech:'⚠ Ticket saved, but WhatsApp auto-send failed')); }
-    else if(!waNum){ toast('⚠ Technician WhatsApp number not set — message not sent'); }
-    pushTaskToTechnicianDashboard(fiberData); // best-effort
+  if(okCount===fiberList.length){
+    toast(fiberList.length>1 ? '✅ '+fiberList.length+' Running Tasks saved ('+selectedTechs.join(', ')+')!' : '✅ Running Task saved successfully!');
+    fiberList.forEach(fd=>{
+      const num=getTechWaNumber(fd.assignTech);
+      if(useGw){ autoSendTechWa(fd).then(sent=>toast(sent?'✅ WhatsApp sent to '+fd.assignTech:'⚠ Ticket saved, but WhatsApp auto-send failed ('+fd.assignTech+')')); }
+      else if(!num){ toast('⚠ '+fd.assignTech+' WhatsApp number not set — message not sent'); }
+      pushTaskToTechnicianDashboard(fd); // best-effort
+    });
   } else {
-    // Save failed: put the data back so nothing has to be retyped
+    // Save failed (fully or partly): put the data back so nothing has to be retyped
     ids.forEach(i=>{ const el=document.getElementById(i); if(el && !el.value) el.value=snap[i]; });
-    toast('❌ Failed to save Running Task! Check connection.'+(!useGw&&waNum?' (WhatsApp message was already opened)':''));
+    // Re-select only the technicians whose save failed
+    setSelectedTechs(fiberList.filter((fd,k)=>!results[k]).map(fd=>fd.assignTech));
+    toast(okCount>0
+      ? '⚠ Only '+okCount+' of '+fiberList.length+' Running Tasks saved. Failed technician(s) re-selected — resubmit those only.'
+      : '❌ Failed to save Running Task! Check connection.');
   }
 }
 
@@ -5397,7 +5424,7 @@ function renderFiberTeamTickets(){
         clientCode:wl.clientCode||'', clientName:wl.clientName||'',
         contact:pick(wl.message,'Client Cell No'), area:pick(wl.message,'Area'), address:pick(wl.message,'Client Address'),
         assignedAt:Number(wl.ts)||0,
-        doneAt:(Number(h.id)>1e12?Math.floor(Number(h.id)):0), id:0 });
+        doneAt:(Number(h.id)>1e12?Math.floor(Number(h.id)):0), id:0, _tkKey:h.firebaseKey||'' });
     });
   }
   doneList.forEach(t=>{ t._as = t._hist ? (t.assignedAt||0) : Number(t.id); });
@@ -5480,7 +5507,7 @@ function renderFiberTeamTickets(){
               <span style="font-size:.6rem;opacity:.85;text-transform:uppercase;letter-spacing:.3px">Done at</span>
               ${formatDoneAt(t.doneAt)}
             </span>
-            ${(canDeleteCompletedToday() && !t._hist) ? `<button class="btn-row-del" onclick="deleteFiberEntry('${t.firebaseKey}')" title="Delete this entry" style="margin-left:6px;vertical-align:middle"><i class="fas fa-trash"></i></button>` : ''}
+            ${canEditDeleteRunningTask() ? (t._hist ? (t._tkKey ? `<button class="btn-row-del" onclick="deleteCompletedHist('${t._tkKey}')" title="Delete this entry" style="margin-left:6px;vertical-align:middle"><i class="fas fa-trash"></i></button>` : '') : `<button class="btn-row-del" onclick="deleteFiberEntry('${t.firebaseKey}')" title="Delete this entry" style="margin-left:6px;vertical-align:middle"><i class="fas fa-trash"></i></button>`) : ''}
           </td>
         </tr>`).join('');
     }
@@ -5505,12 +5532,23 @@ async function deleteFiberEntry(firebaseKey){
   if(!canEditDeleteRunningTask()){ toast('❌ Permission denied!'); return; }
   const t = (window.fiberTeamTickets||[]).find(x=>x.firebaseKey===firebaseKey);
   // Completed Today entries (status 'done') can only be deleted by Admin
-  if(t && t.status==='done' && !canDeleteCompletedToday()){ toast('❌ Permission denied!'); return; }
+  if(t && t.status==='done' && !canEditDeleteRunningTask()){ toast('❌ Permission denied!'); return; }
   if(!confirm(`Delete this entry${t&&t.tki?(' ('+t.tki+')'):''}? This cannot be undone.`)) return;
   const ok = await window._fbDeleteFiber(firebaseKey);
   if(ok && t && t.tki) await deleteTechnicianDashboardTasks([t.tki]);
   if(ok) toast('🗑 Entry deleted successfully');
   else toast('❌ Delete failed! Check connection.');
+}
+
+// Completed (past date) rows that come from the Daily ticket records (All Task): delete that record
+async function deleteCompletedHist(ticketKey){
+  if(!canEditDeleteRunningTask()){ toast('❌ Permission denied!'); return; }
+  const t = (typeof tickets!=='undefined' ? tickets : []).find(x=>x.firebaseKey===ticketKey);
+  if(!t){ toast('❌ Entry not found'); return; }
+  if(!confirm(`Delete this completed entry (${t.ticket||''})?\nThis also removes it from the All Task records and cannot be undone.`)) return;
+  const ok = await window._fbDelete(ticketKey);
+  if(ok) toast('🗑 Entry deleted successfully');
+  else toast('❌ Delete failed! (no permission or connection problem)');
 }
 
 // ===== RUNNING TASK: EDIT ASSIGNED ENGINEER/TECHNICIAN =====
@@ -8305,6 +8343,86 @@ input::placeholder{text-align:center}
 #page-alltask .tbl-wrap thead th,#page-devices .tbl-wrap thead th,#page-wifi .tbl-wrap thead th{top:var(--stk-top,0px) !important;background-clip:padding-box;background-color:#e8f4fd !important}
 /* Cover any gap above the frozen header so scrolling rows never show through */
 #page-alltask .tbl-wrap thead th,#page-devices .tbl-wrap thead th,#page-wifi .tbl-wrap thead th{box-shadow:0 -1px 0 var(--border),0 -6px 0 #e8f4fd,inset 0 -2px 0 var(--border) !important;z-index:20 !important}
+
+/* ===== Running Task tables: uniform date/time badges + roomier rows ===== */
+#rt-table th,#rt-done-table th{padding:9px 12px !important}
+#rt-tbody td,#rt-done-tbody td{padding:8px 12px !important;vertical-align:middle !important;line-height:1.35 !important}
+#rt-tbody td:nth-child(1),#rt-done-tbody td:nth-child(1){padding-left:8px !important;padding-right:8px !important}
+#rt-tbody td:nth-child(5),#rt-done-tbody td:nth-child(5),
+#rt-tbody td:nth-child(6),#rt-done-tbody td:nth-child(6),
+#rt-tbody td:nth-child(7),#rt-done-tbody td:nth-child(7){padding:8px 12px !important}
+#rt-tbody td:nth-child(8),#rt-done-tbody td:nth-child(8),
+#rt-table th:nth-child(8),#rt-done-table th:nth-child(8){padding-left:12px !important;padding-right:12px !important}
+#rt-tbody .rt-tech-wrap,#rt-done-tbody .rt-tech-wrap{gap:10px !important}
+/* The two date/time badges (Assigned Tech + Action) share exactly the same box + font */
+#rt-tbody td .rt-tech-wrap .rt-assign-at-sm,
+#rt-done-tbody td .rt-tech-wrap .rt-assign-at-sm,
+#rt-done-tbody tr.rt-row-done td .rt-done-at{
+  display:inline-flex !important;flex-direction:column !important;align-items:center !important;justify-content:center !important;
+  background:#fff !important;border:1.5px solid #bfe6cd !important;border-radius:8px !important;
+  padding:3px 10px !important;line-height:1.25 !important;min-width:78px;box-sizing:border-box}
+#rt-tbody td .rt-tech-wrap .rt-assign-at-sm{border-color:#fdba74 !important}
+#rt-tbody td .rt-tech-wrap .rt-assign-at-sm span.rt-fwd-date,
+#rt-tbody td .rt-tech-wrap .rt-assign-at-sm span.rt-fwd-time,
+#rt-done-tbody td .rt-tech-wrap .rt-assign-at-sm span.rt-fwd-date,
+#rt-done-tbody td .rt-tech-wrap .rt-assign-at-sm span.rt-fwd-time,
+#rt-done-tbody tr.rt-row-done td .rt-done-at span.rt-fwd-date,
+#rt-done-tbody tr.rt-row-done td .rt-done-at span.rt-fwd-time{
+  font-size:.74rem !important;font-weight:800 !important;line-height:1.25 !important;opacity:1 !important;letter-spacing:.1px;display:block !important;text-align:center}
+#rt-done-tbody td .rt-tech-wrap .rt-assign-at-sm span,
+#rt-done-tbody tr.rt-row-done td .rt-done-at span{color:#15803d !important;-webkit-text-fill-color:#15803d !important}
+#rt-done-tbody tr.rt-row-done td .rt-done-at span:first-child:not(.rt-fwd-date):not(.rt-fwd-time){display:none !important}
+#rt-tbody .rt-action-group{padding:3px !important}
+#rt-tbody .rt-status-btn{padding:5px 12px !important}
+
+/* ===== Date/time badges: slightly smaller font, time in orange ===== */
+#rt-tbody td .rt-tech-wrap .rt-assign-at-sm span.rt-fwd-date,
+#rt-tbody td .rt-tech-wrap .rt-assign-at-sm span.rt-fwd-time,
+#rt-done-tbody td .rt-tech-wrap .rt-assign-at-sm span.rt-fwd-date,
+#rt-done-tbody td .rt-tech-wrap .rt-assign-at-sm span.rt-fwd-time,
+#rt-done-tbody tr.rt-row-done td .rt-done-at span.rt-fwd-date,
+#rt-done-tbody tr.rt-row-done td .rt-done-at span.rt-fwd-time{font-size:.66rem !important}
+#rt-tbody td .rt-tech-wrap .rt-assign-at-sm span.rt-fwd-time,
+#rt-done-tbody td .rt-tech-wrap .rt-assign-at-sm span.rt-fwd-time,
+#rt-done-tbody tr.rt-row-done td .rt-done-at span.rt-fwd-time{color:#ea580c !important;-webkit-text-fill-color:#ea580c !important}
+#rt-tbody td .rt-tech-wrap .rt-assign-at-sm,
+#rt-done-tbody td .rt-tech-wrap .rt-assign-at-sm,
+#rt-done-tbody tr.rt-row-done td .rt-done-at{padding:2px 8px !important;min-width:70px}
+
+/* ===== Running Task tables: narrower Client Info with wrapping + delete icon spacing ===== */
+#rt-table th:nth-child(3),#rt-done-table th:nth-child(3),#rt-tbody td:nth-child(3),#rt-done-tbody td:nth-child(3){width:230px !important;min-width:150px !important;max-width:230px !important;white-space:normal !important}
+#rt-tbody tr td:nth-child(3) div,#rt-done-tbody tr td:nth-child(3) div{white-space:normal !important;overflow-wrap:anywhere !important;word-break:break-word !important;line-height:1.3 !important;font-size:.72rem !important}
+#rt-done-tbody td:nth-child(8) .btn-row-del{margin-left:8px !important;vertical-align:middle !important;font-size:.85rem !important;padding:5px 8px !important;display:inline-block !important}
+
+/* ===== Client Info: width now comes from the colgroup (22%); wrap long text ===== */
+#rt-table th:nth-child(3),#rt-done-table th:nth-child(3),#rt-tbody td:nth-child(3),#rt-done-tbody td:nth-child(3){width:auto !important;min-width:0 !important;max-width:none !important}
+#rt-table,#rt-done-table{table-layout:fixed !important;min-width:900px !important}
+#rt-tbody td,#rt-done-tbody td{overflow:visible !important}
+#rt-tbody td:nth-child(8),#rt-done-tbody td:nth-child(8),#rt-table th:nth-child(8),#rt-done-table th:nth-child(8){width:auto !important}
+#rt-done-tbody td:nth-child(8){white-space:nowrap !important}
+
+/* ===== Ticket ID wider, Client Info a bit wider; table keeps a comfortable min width and scrolls sideways if needed ===== */
+#rt-table,#rt-done-table{min-width:1200px !important}
+#rt-tbody td:nth-child(2),#rt-done-tbody td:nth-child(2){white-space:nowrap !important;overflow:visible !important}
+#rt-tbody td:nth-child(5),#rt-done-tbody td:nth-child(5),#rt-tbody td:nth-child(6),#rt-done-tbody td:nth-child(6){white-space:normal !important;overflow-wrap:anywhere}
+
+/* Action column: tighter side padding (content is centered inside it) */
+#rt-tbody td:nth-child(8),#rt-done-tbody td:nth-child(8),#rt-table th:nth-child(8),#rt-done-table th:nth-child(8){padding-left:6px !important;padding-right:6px !important;text-align:center}
+
+/* Action column: compact buttons so it fits the narrower width */
+#rt-tbody td:nth-child(8) .btn-row-edit,#rt-tbody td:nth-child(8) .btn-row-del,#rt-done-tbody td:nth-child(8) .btn-row-del{padding:4px 5px !important;margin-left:2px !important}
+#rt-tbody td:nth-child(8),#rt-done-tbody td:nth-child(8),#rt-table th:nth-child(8),#rt-done-table th:nth-child(8){padding-left:4px !important;padding-right:4px !important}
+
+/* ===== No horizontal scroll: table always fits the available width ===== */
+#rt-table,#rt-done-table{min-width:0 !important;width:100% !important;table-layout:fixed !important}
+#page-runningtask .tbl-wrap{overflow-x:hidden !important}
+#rt-table th,#rt-done-table th{padding-left:4px !important;padding-right:4px !important;font-size:.74rem !important}
+#rt-tbody td,#rt-done-tbody td{padding-left:6px !important;padding-right:6px !important}
+#rt-tbody td:nth-child(2),#rt-done-tbody td:nth-child(2),#rt-tbody td:nth-child(2) *,#rt-done-tbody td:nth-child(2) *{font-size:.72rem !important;white-space:normal !important;overflow-wrap:anywhere !important}
+#rt-tbody td:nth-child(4),#rt-done-tbody td:nth-child(4){font-size:.74rem !important;white-space:nowrap !important}
+#rt-tbody td:nth-child(7),#rt-done-tbody td:nth-child(7){padding-left:4px !important;padding-right:4px !important}
+#rt-tbody .rt-tech-wrap,#rt-done-tbody .rt-tech-wrap{gap:6px !important}
+#rt-tbody td .rt-tech-wrap .rt-assign-at-sm,#rt-done-tbody td .rt-tech-wrap .rt-assign-at-sm,#rt-done-tbody tr.rt-row-done td .rt-done-at{min-width:0 !important;padding:2px 6px !important}
 </style>
 <script>
 /* Frozen table header: auto-align to the very top of the scroll area (no gap, no rows showing above it) */
