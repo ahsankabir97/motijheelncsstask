@@ -726,7 +726,7 @@ html.l3-restoring #login-screen{display:none !important;}
 @keyframes pageItemIn{from{opacity:0;transform:translate3d(0,24px,0)}to{opacity:1;transform:translate3d(0,0,0)}}
 .page.active:not(#page-inventory):not(#page-techtask):not(#page-clientdetails):not(#page-leaveroster):not(#page-seguninv){animation:pageSmoothIn .45s ease-out backwards;}
 /* elegant staggered rise: each block of the page glides up one after another */
-.page.active:not(#page-inventory):not(#page-techtask):not(#page-clientdetails):not(#page-leaveroster):not(#page-seguninv)>*{animation:pageItemIn 1.1s cubic-bezier(.25,.8,.25,1) backwards;will-change:transform,opacity;}
+.page.active:not(#page-inventory):not(#page-techtask):not(#page-clientdetails):not(#page-leaveroster):not(#page-seguninv)>*{animation:pageItemIn 1.1s cubic-bezier(.25,.8,.25,1) backwards;}
 .page.active:not(#page-inventory):not(#page-techtask):not(#page-clientdetails):not(#page-leaveroster):not(#page-seguninv)>*:nth-child(2){animation-delay:.12s}
 .page.active:not(#page-inventory):not(#page-techtask):not(#page-clientdetails):not(#page-leaveroster):not(#page-seguninv)>*:nth-child(3){animation-delay:.24s}
 .page.active:not(#page-inventory):not(#page-techtask):not(#page-clientdetails):not(#page-leaveroster):not(#page-seguninv)>*:nth-child(n+4){animation-delay:.36s}
@@ -2718,7 +2718,7 @@ button:focus,a:focus,[tabindex]:focus,.tr-click:focus{outline:none !important}
         <div class="tbl-wrap"><table>
           <thead><tr>
   <th id="at-sel-th" style="display:none;width:36px"><input type="checkbox" id="chk-all" onchange="toggleSelectAll(this)" style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer"></th>
-  <th>#</th>
+  <th class="at-num">#</th>
   <th>Date</th>
   <th>Ticket ID</th>
   <th>Category</th>
@@ -5133,7 +5133,7 @@ function viewWaMsg(key){
   const l=(window.waLogs||[]).find(x=>x.firebaseKey===key); if(!l) return;
   document.getElementById('wal-modal-meta').textContent='To: '+l.tech+(l.techNumber?' ('+l.techNumber+')':'')+'  •  By: '+(l.byName||l.by)+'  •  '+new Date(l.ts).toLocaleString('en-GB')+(l.note?'  •  '+l.note:'');
   document.getElementById('wal-modal-body').textContent=l.message||'';
-  document.getElementById('wal-modal').style.display='flex';
+  (function(m){ if(m.parentNode!==document.body) document.body.appendChild(m); m.style.display='flex'; })(document.getElementById('wal-modal'));
 }
 function closeWaMsg(){ document.getElementById('wal-modal').style.display='none'; }
 async function deleteWaLog(key){
@@ -6009,7 +6009,7 @@ function buildRows(arr,tbodyId,withDel,isMyTask,startIdx=0){
       :'';
     return `<tr>
     ${chkCell}
-    <td>${startIdx+i+1}</td>
+    <td class="at-num">${startIdx+i+1}</td>
     <td style="padding:5px 4px">${dateTimeCell(t)}</td>
     <td style="white-space:nowrap">${t.ticket}</td>
     <td><span class="chip chip-cat">${t.cat}</span></td>
@@ -8338,6 +8338,33 @@ input::placeholder{text-align:center}
 #rt-tbody td:nth-child(3) *,#rt-done-tbody td:nth-child(3) *{text-align:center !important}
 /* Synced badge: deeper green text/icon */
 .fb-status.connected,.fb-status.connected span,.fb-status.connected i{color:#15803d !important;-webkit-text-fill-color:#15803d !important;font-weight:800 !important}
+/* All Completed Tasks: # column only as wide as its number (no extra empty space) */
+#page-alltask th.at-num,#page-alltask td.at-num{width:1%;min-width:0 !important;padding-left:7px !important;padding-right:7px !important;text-align:center}
+/* All Completed Tasks: table touches the card edges (remove the 18px left/right gap) */
+#page-alltask .tbl-card{padding:0 !important}
+/* ===== Running Task page: modern full-width cards (Back Office Assign / Completed Today) ===== */
+.content:has(#page-runningtask.active){padding-left:8px !important;padding-right:8px !important}
+#page-runningtask .form-card,#page-runningtask .tbl-card{width:100%;margin-left:0 !important;margin-right:0 !important}
+#page-runningtask .tbl-card{padding:0 !important;overflow:hidden !important;border:none !important;border-radius:16px !important;
+  background:#fff !important;box-shadow:0 8px 26px rgba(30,64,175,.13),0 1px 3px rgba(15,35,95,.08) !important}
+#page-runningtask .tbl-card .tbl-wrap{margin:0 !important;padding:0 !important;border-radius:0}
+/* colourful title bar */
+#page-runningtask .tbl-top{padding:9px 16px !important;border:none !important;
+  background:linear-gradient(100deg,#1e3a8a 0%,#2f5fd0 55%,#5b8def 100%) !important}
+#page-runningtask .tbl-card:has(#rt-done-table) .tbl-top{background:linear-gradient(100deg,#065f46 0%,#059669 55%,#34d399 100%) !important}
+#page-runningtask .tbl-top .tbl-title{color:#fff !important;font-size:.92rem !important;letter-spacing:.4px}
+#page-runningtask .tbl-top .tbl-title i,#page-runningtask .tbl-card:has(#rt-done-table) .tbl-title i{background:rgba(255,255,255,.22) !important;color:#fff !important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.35)}
+#page-runningtask .tbl-top .tbl-badge,#page-runningtask #rt-cnt,#page-runningtask #rt-done-cnt{background:rgba(255,255,255,.95) !important;color:#1e3a8a !important;border:none !important;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+#page-runningtask #rt-done-cnt{color:#047857 !important}
+/* light table header that sits under the colour bar */
+#rt-table thead th{background:#eaf1ff !important;color:#1e3a8a !important;border-right:none !important;border-bottom:2px solid #c9dafb !important;box-shadow:none !important}
+#rt-done-table thead th{background:#e5f7ee !important;color:#166534 !important;border-right:none !important;border-bottom:2px solid #bfe8d0 !important;box-shadow:none !important}
+/* clean rows: no boxy vertical lines, soft separators, smooth hover */
+#rt-table td,#rt-done-table td{border-right:none !important;border-bottom:1px solid #edf2fb !important}
+#rt-table tbody tr,#rt-done-table tbody tr{transition:filter .2s ease}
+#rt-table tbody tr:hover,#rt-done-table tbody tr:hover{filter:brightness(.975)}
+#rt-table,#rt-done-table{width:100% !important}
+#page-runningtask .tbl-top span[style*="font-size:.68rem"]{color:#fff !important}
 /* Frozen table header: All Completed Tasks, Used Devices, WiFi Scoring (page scrolls normally, only header sticks) */
 #page-alltask .tbl-card,#page-devices .tbl-card,#page-wifi .tbl-card{overflow:clip !important}
 #page-alltask .tbl-wrap,#page-devices .tbl-wrap,#page-wifi .tbl-wrap{overflow:visible !important}
